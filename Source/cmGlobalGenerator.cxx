@@ -2154,6 +2154,33 @@ cmGlobalGenerator::FindTarget(const std::string& name,
 }
 
 //----------------------------------------------------------------------------
+std::vector<std::string>
+cmGlobalGenerator::GetAllTargetNames() const
+{
+  std::vector<std::string> targetNames;
+
+  TargetMap::const_iterator i = this->AliasTargets.begin();
+  for ( ; i != this->AliasTargets.end() ; ++i)
+    {
+    targetNames.push_back(i->first);
+    }
+
+  i = this->TotalTargets.begin();
+  for ( ; i != this->TotalTargets.end() ; ++i)
+    {
+    targetNames.push_back(i->first);
+    }
+
+  i = this->ImportedTargets.begin();
+  for ( ; i != this->ImportedTargets.end() ; ++i)
+    {
+    targetNames.push_back(i->first);
+    }
+
+  return targetNames;
+}
+
+//----------------------------------------------------------------------------
 bool
 cmGlobalGenerator::NameResolvesToFramework(const std::string& libname) const
 {

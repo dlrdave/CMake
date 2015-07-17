@@ -16,6 +16,7 @@
 #include "cmCommand.h"
 #include "cmAlgorithms.h"
 #include "cmDefinitions.h"
+#include "cmGlobalGenerator.h"
 
 #include <assert.h>
 
@@ -550,6 +551,13 @@ const char *cmState::GetGlobalProperty(const std::string& prop)
     std::string langs;
     langs = cmJoin(this->EnabledLanguages, ";");
     this->SetGlobalProperty("ENABLED_LANGUAGES", langs.c_str());
+    }
+  else if ( prop == "TARGETS" )
+    {
+    std::vector<std::string> targetNames
+      = this->CMakeInstance->GetGlobalGenerator()->GetAllTargetNames();
+    std::string targets = cmJoin(targetNames, ";");
+    this->SetGlobalProperty("TARGETS", targets.c_str());
     }
 #define STRING_LIST_ELEMENT(F) ";" #F
   if (prop == "CMAKE_C_KNOWN_FEATURES")

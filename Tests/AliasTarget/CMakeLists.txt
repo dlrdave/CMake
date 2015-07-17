@@ -1,5 +1,40 @@
-cmake_minimum_required(VERSION 2.8.11)
+cmake_minimum_required(VERSION 3.3.20150926)
 project(AliasTarget)
+
+function(getTargetsJson var)
+  get_property(targets GLOBAL PROPERTY TARGETS)
+
+  list(LENGTH targets n)
+  set(i 1)
+
+  set(json "{\n")
+  set(json "${json}  \"targets\" : [\n")
+
+  foreach(t ${targets})
+    if(i LESS ${n})
+      set(c ",")
+    else()
+      set(c "")
+    endif()
+
+    get_property(tt TARGET ${t} PROPERTY TYPE)
+    set(json "${json}    { \"name\" : \"${t}\", \"type\" : \"${tt}\" }${c}\n")
+
+    math(EXPR i "${i}+1")
+  endforeach()
+
+  set(json "${json}  ]\n")
+  set(json "${json}}\n")
+
+  set(${var} "${json}" PARENT_SCOPE)
+endfunction()
+
+function(writeTargetsJsonFile filename)
+  getTargetsJson(json)
+  file(WRITE "${filename}" "${json}")
+endfunction()
+
+writeTargetsJsonFile(${CMAKE_CURRENT_BINARY_DIR}/targets-0.json)
 
 set(CMAKE_CXX_STANDARD 98)
 
@@ -11,11 +46,15 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL HP AND
 endif ()
 
 add_library(foo SHARED empty.cpp)
+writeTargetsJsonFile(${CMAKE_CURRENT_BINARY_DIR}/targets-1.json)
+
 add_library(PREFIX::Foo ALIAS foo)
 add_library(Another::Alias ALIAS foo)
 
 add_library(objects OBJECT object.cpp)
 add_library(Alias::Objects ALIAS objects)
+
+writeTargetsJsonFile(${CMAKE_CURRENT_BINARY_DIR}/targets-2.json)
 
 target_compile_definitions(foo PUBLIC FOO_DEFINE)
 
@@ -78,3 +117,5 @@ endif()
 if (NOT _notAlias2 STREQUAL _notAlias2-NOTFOUND)
   message(SEND_ERROR "_notAlias2 not defined to a -NOTFOUND variant")
 endif()
+
+writeTargetsJsonFile(${CMAKE_CURRENT_BINARY_DIR}/targets-3.json)

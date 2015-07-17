@@ -247,6 +247,9 @@ public:
   cmTarget* FindTarget(const std::string& name,
                        bool excludeAliases = false) const;
 
+   ///! Retrieve all target names everywhere.
+  std::vector<std::string> GetAllTargetNames() const;
+
   void AddAlias(const std::string& name, cmTarget *tgt);
   bool IsAlias(const std::string& name) const;
 
