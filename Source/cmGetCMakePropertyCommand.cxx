@@ -45,12 +45,6 @@ bool cmGetCMakePropertyCommand
       output = macrosProp;
       }
     }
-  else if ( args[1] == "COMPONENTS" )
-    {
-    const std::set<std::string>* components
-      = this->Makefile->GetGlobalGenerator()->GetInstallComponents();
-    output = cmJoin(*components, ";");
-    }
   else
     {
     const char *prop = 0;

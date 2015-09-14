@@ -552,6 +552,13 @@ const char *cmState::GetGlobalProperty(const std::string& prop)
     langs = cmJoin(this->EnabledLanguages, ";");
     this->SetGlobalProperty("ENABLED_LANGUAGES", langs.c_str());
     }
+  else if ( prop == "COMPONENTS" )
+    {
+    const std::set<std::string>* components
+      = this->CMakeInstance->GetGlobalGenerator()->GetInstallComponents();
+    std::string cmps = cmJoin(*components, ";");
+    this->SetGlobalProperty(prop, cmps.c_str());
+  }
   else if ( prop == "TARGETS" )
     {
     std::vector<std::string> targetNames
