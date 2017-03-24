@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # CMakeForceCompiler
 # ------------------
@@ -11,6 +14,12 @@
 # taught to recognize any compiler.  Furthermore, the suite of information
 # CMake detects from a compiler is now too extensive to be provided by
 # toolchain files using these macros.
+#
+# One common use case for this module was to skip CMake's checks for a
+# working compiler when using a cross-compiler that cannot link binaries
+# without special flags or custom linker scripts.  This case is now supported
+# by setting the :variable:`CMAKE_TRY_COMPILE_TARGET_TYPE` variable in the
+# toolchain file instead.
 #
 # -------------------------------------------------------------------------
 #
@@ -55,19 +64,6 @@
 #    set(CMAKE_SYSTEM_NAME Generic)
 #    CMAKE_FORCE_C_COMPILER   (chc12 MetrowerksHicross)
 #    CMAKE_FORCE_CXX_COMPILER (chc12 MetrowerksHicross)
-
-#=============================================================================
-# Copyright 2007-2009 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 macro(CMAKE_FORCE_C_COMPILER compiler id)
   message(DEPRECATION "The CMAKE_FORCE_C_COMPILER macro is deprecated.  "

@@ -1,36 +1,32 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmInstallTargetGenerator_h
 #define cmInstallTargetGenerator_h
 
+#include <cmConfigure.h>
+
 #include "cmInstallGenerator.h"
+#include "cmScriptGenerator.h"
+
+#include <iosfwd>
+#include <string>
+#include <vector>
 
 class cmGeneratorTarget;
+class cmLocalGenerator;
 
 /** \class cmInstallTargetGenerator
  * \brief Generate target installation rules.
  */
-class cmInstallTargetGenerator: public cmInstallGenerator
+class cmInstallTargetGenerator : public cmInstallGenerator
 {
 public:
-  cmInstallTargetGenerator(
-    std::string const& targetName, const char* dest, bool implib,
-    const char* file_permissions,
-    std::vector<std::string> const& configurations,
-    const char* component,
-    MessageLevel message,
-    bool optional
-    );
-  virtual ~cmInstallTargetGenerator();
+  cmInstallTargetGenerator(std::string const& targetName, const char* dest,
+                           bool implib, const char* file_permissions,
+                           std::vector<std::string> const& configurations,
+                           const char* component, MessageLevel message,
+                           bool exclude_from_all, bool optional);
+  ~cmInstallTargetGenerator() CM_OVERRIDE;
 
   /** Select the policy for installing shared library linkable name
       symlinks.  */
@@ -57,7 +53,7 @@ public:
                                         const std::string& config,
                                         NameType nameType = NameNormal);
 
-  void Compute(cmLocalGenerator* lg);
+  void Compute(cmLocalGenerator* lg) CM_OVERRIDE;
 
   cmGeneratorTarget* GetTarget() const { return this->Target; }
 
@@ -66,20 +62,19 @@ public:
   std::string GetDestination(std::string const& config) const;
 
 protected:
-  virtual void GenerateScript(std::ostream& os);
-  virtual void GenerateScriptForConfig(std::ostream& os,
-                                       const std::string& config,
-                                       Indent const& indent);
-  typedef void (cmInstallTargetGenerator::*TweakMethod)(
-    std::ostream&, Indent const&, const std::string&, std::string const&
-    );
+  void GenerateScript(std::ostream& os) CM_OVERRIDE;
+  void GenerateScriptForConfig(std::ostream& os, const std::string& config,
+                               Indent const& indent) CM_OVERRIDE;
+  typedef void (cmInstallTargetGenerator::*TweakMethod)(std::ostream&,
+                                                        Indent const&,
+                                                        const std::string&,
+                                                        std::string const&);
   void AddTweak(std::ostream& os, Indent const& indent,
                 const std::string& config, std::string const& file,
                 TweakMethod tweak);
   void AddTweak(std::ostream& os, Indent const& indent,
                 const std::string& config,
-                std::vector<std::string> const& files,
-                TweakMethod tweak);
+                std::vector<std::string> const& files, TweakMethod tweak);
   std::string GetDestDirPath(std::string const& file);
   void PreReplacementTweaks(std::ostream& os, Indent const& indent,
                             const std::string& config,
@@ -101,6 +96,8 @@ protected:
                     const std::string& toDestDirPath);
   void AddRanlibRule(std::ostream& os, Indent const& indent,
                      const std::string& toDestDirPath);
+  void AddUniversalInstallRule(std::ostream& os, Indent const& indent,
+                               const std::string& toDestDirPath);
 
   std::string TargetName;
   cmGeneratorTarget* Target;

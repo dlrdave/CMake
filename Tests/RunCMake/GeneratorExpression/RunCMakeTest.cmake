@@ -1,5 +1,6 @@
 include(RunCMake)
 
+run_cmake(BadIF)
 run_cmake(BadCONFIG)
 run_cmake(BadOR)
 run_cmake(BadAND)
@@ -28,6 +29,8 @@ run_cmake(COMPILE_LANGUAGE-add_test)
 run_cmake(COMPILE_LANGUAGE-unknown-lang)
 run_cmake(TARGET_FILE-recursion)
 run_cmake(OUTPUT_NAME-recursion)
+run_cmake(TARGET_PROPERTY-LOCATION)
+run_cmake(LINK_ONLY-not-linking)
 
 run_cmake(ImportedTarget-TARGET_PDB_FILE)
 if(LINKER_SUPPORTS_PDB)

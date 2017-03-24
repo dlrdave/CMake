@@ -18,9 +18,10 @@ Execute one or more child processes.
                   [OUTPUT_QUIET]
                   [ERROR_QUIET]
                   [OUTPUT_STRIP_TRAILING_WHITESPACE]
-                  [ERROR_STRIP_TRAILING_WHITESPACE])
+                  [ERROR_STRIP_TRAILING_WHITESPACE]
+                  [ENCODING <name>])
 
-Runs the given sequence of one or more commands with the standard
+Runs the given sequence of one or more commands in parallel with the standard
 output of each process piped to the standard input of the next.
 A single standard error pipe is used for all processes.
 
@@ -35,6 +36,9 @@ Options:
  are treated as normal arguments.
  (Use the ``INPUT_*``, ``OUTPUT_*``, and ``ERROR_*`` options to
  redirect stdin, stdout, and stderr.)
+
+ If a sequential execution of multiple commands is required, use multiple
+ :command:`execute_process` calls with a single ``COMMAND`` argument.
 
 ``WORKING_DIRECTORY``
  The named directory will be set as the current working directory of
@@ -62,6 +66,25 @@ Options:
 
 ``OUTPUT_QUIET``, ``ERROR_QUIET``
  The standard output or standard error results will be quietly ignored.
+
+``ENCODING <name>``
+ On Windows, the encoding that is used to decode output from the process.
+ Ignored on other platforms.
+ Valid encoding names are:
+
+ ``NONE``
+   Perform no decoding.  This assumes that the process output is encoded
+   in the same way as CMake's internal encoding (UTF-8).
+   This is the default.
+ ``AUTO``
+   Use the current active console's codepage or if that isn't
+   available then use ANSI.
+ ``ANSI``
+   Use the ANSI codepage.
+ ``OEM``
+   Use the original equipment manufacturer (OEM) code page.
+ ``UTF8``
+   Use the UTF-8 codepage.
 
 If more than one ``OUTPUT_*`` or ``ERROR_*`` option is given for the
 same pipe the precedence is not specified.

@@ -1,14 +1,5 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2015 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 /*-------------------------------------------------------------------------
   Portions of this source have been derived from the 'bindexplib' tool
   provided by the CERN ROOT Data Analysis Framework project (root.cern.ch).
@@ -71,12 +62,11 @@
 *----------------------------------------------------------------------
 */
 #include "bindexplib.h"
+
 #include <cmsys/Encoding.hxx>
-#include <windows.h>
-#include <stdio.h>
-#include <string>
-#include <fstream>
+#include <cmsys/FStream.hxx>
 #include <iostream>
+#include <windows.h>
 
 typedef struct cmANON_OBJECT_HEADER_BIGOBJ {
    /* same as ANON_OBJECT_HEADER_V2 */
@@ -244,9 +234,7 @@ public:
    *----------------------------------------------------------------------
    */
   void DumpObjFile() {
-     if(!HaveExportedObjects()) {
-        this->DumpExternalsObjects();
-     }
+    this->DumpExternalsObjects();
   }
 
   /*
@@ -320,7 +308,8 @@ public:
                   this->DataSymbols.insert(symbol);
                } else {
                   if ( pSymbolTable->Type  ||
-                       !(SectChar & IMAGE_SCN_MEM_READ)) {
+                       !(SectChar & IMAGE_SCN_MEM_READ) ||
+                       (SectChar & IMAGE_SCN_MEM_EXECUTE)) {
                      this->Symbols.insert(symbol);
                   } else {
                      // printf(" strange symbol: %s \n",symbol.c_str());
@@ -437,24 +426,46 @@ DumpFile(const char* filename,
 
 bool bindexplib::AddObjectFile(const char* filename)
 {
-  if(!DumpFile(filename, this->Symbols, this->DataSymbols))
-    {
-    return false;
-    }
-  return true;
+  return DumpFile(filename, this->Symbols, this->DataSymbols);
+}
+
+bool bindexplib::AddDefinitionFile(const char* filename)
+{
+   cmsys::ifstream infile(filename);
+   if (!infile) {
+     fprintf(stderr, "Couldn't open definition file '%s'\n", filename);
+     return false;
+   }
+   std::string str;
+   while (std::getline(infile, str)) {
+     // skip the LIBRAY and EXPORTS lines (if any)
+     if ((str.compare(0,7,"LIBRARY") == 0) ||
+         (str.compare(0,7,"EXPORTS") == 0)) {
+       continue;
+     }
+     // remove leading tabs & spaces
+     str.erase(0, str.find_first_not_of(" \t"));
+     std::size_t found = str.find(" \t DATA");
+     if (found != std::string::npos) {
+       str.erase (found, std::string::npos);
+       this->DataSymbols.insert(str);
+     } else {
+       this->Symbols.insert(str);
+     }
+   }
+   infile.close();
+   return true;
 }
 
 void bindexplib::WriteFile(FILE* file)
 {
   fprintf(file,"EXPORTS \n");
-  for(std::set<std::string>::const_iterator i = this->DataSymbols.begin();
-      i!= this->DataSymbols.end(); ++i)
-    {
+  for (std::set<std::string>::const_iterator i = this->DataSymbols.begin();
+       i != this->DataSymbols.end(); ++i) {
     fprintf(file, "\t%s \t DATA\n", i->c_str());
-    }
-  for(std::set<std::string>::const_iterator i = this->Symbols.begin();
-      i!= this->Symbols.end(); ++i)
-    {
+  }
+  for (std::set<std::string>::const_iterator i = this->Symbols.begin();
+       i != this->Symbols.end(); ++i) {
     fprintf(file, "\t%s\n", i->c_str());
-    }
+  }
 }

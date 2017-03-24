@@ -15,10 +15,11 @@ class MyWidget : public QWidget
 {
   Q_OBJECT
 public:
-  explicit MyWidget(QWidget *parent = 0);
+  explicit MyWidget(QWidget* parent = 0);
+  ~MyWidget();
 
 private:
-  const std::auto_ptr<Ui::MyWidget> ui;
+  Ui::MyWidget* ui;
 };
 
 #endif

@@ -1,14 +1,6 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2013 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 import os
 import re
 
@@ -54,7 +46,7 @@ from sphinx.directives import ObjectDescription
 from sphinx.domains import Domain, ObjType
 from sphinx.roles import XRefRole
 from sphinx.util.nodes import make_refnode
-from sphinx import addnodes
+from sphinx import addnodes, version_info
 
 class CMakeModule(Directive):
     required_arguments = 1
@@ -131,7 +123,11 @@ class _cmake_index_entry:
         self.desc = desc
 
     def __call__(self, title, targetid, main = 'main'):
-        return ('pair', u'%s ; %s' % (self.desc, title), targetid, main)
+        # See https://github.com/sphinx-doc/sphinx/issues/2673
+        if version_info < (1, 4):
+            return ('pair', u'%s ; %s' % (self.desc, title), targetid, main)
+        else:
+            return ('pair', u'%s ; %s' % (self.desc, title), targetid, main, None)
 
 _cmake_index_objs = {
     'command':    _cmake_index_entry('command'),

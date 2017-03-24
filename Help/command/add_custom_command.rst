@@ -20,7 +20,9 @@ The first signature is for adding a custom command to produce an output::
                                       [<lang2> depend2] ...]
                      [WORKING_DIRECTORY dir]
                      [COMMENT comment]
-                     [VERBATIM] [APPEND] [USES_TERMINAL])
+                     [DEPFILE depfile]
+                     [VERBATIM] [APPEND] [USES_TERMINAL]
+                     [COMMAND_EXPAND_LISTS])
 
 This defines a command to generate specified ``OUTPUT`` file(s).
 A target created in the same directory (``CMakeLists.txt`` file)
@@ -76,9 +78,12 @@ The options are:
   The optional ``ARGS`` argument is for backward compatibility and
   will be ignored.
 
-  If ``COMMAND`` specifies an executable target (created by the
+  If ``COMMAND`` specifies an executable target name (created by the
   :command:`add_executable` command) it will automatically be replaced
-  by the location of the executable created at build time.
+  by the location of the executable created at build time. If set, the
+  :prop_tgt:`CROSSCOMPILING_EMULATOR` executable target property will
+  also be prepended to the command to allow the executable to run on
+  the host.
   (Use the ``TARGET_FILE``
   :manual:`generator expression <cmake-generator-expressions(7)>` to
   reference an executable later in the command line.)
@@ -117,6 +122,14 @@ The options are:
 
   Arguments to ``DEPENDS`` may use
   :manual:`generator expressions <cmake-generator-expressions(7)>`.
+
+``COMMAND_EXPAND_LISTS``
+  Lists in ``COMMAND`` arguments will be expanded, including those
+  created with
+  :manual:`generator expressions <cmake-generator-expressions(7)>`,
+  allowing ``COMMAND`` arguments such as
+  ``${CC} "-I$<JOIN:$<TARGET_PROPERTY:foo,INCLUDE_DIRECTORIES>,;-I>" foo.cc``
+  to be properly expanded.
 
 ``IMPLICIT_DEPENDS``
   Request scanning of implicit dependencies of an input file.
@@ -167,6 +180,12 @@ The options are:
   If it is a relative path it will be interpreted relative to the
   build tree directory corresponding to the current source directory.
 
+``DEPFILE``
+  Specify a ``.d`` depfile for the :generator:`Ninja` generator.
+  A ``.d`` file holds dependencies usually emitted by the custom
+  command itself.
+  Using ``DEPFILE`` with other generators than Ninja is an error.
+
 Build Events
 ^^^^^^^^^^^^
 
@@ -178,7 +197,7 @@ target is already built, the command will not execute.
 
 ::
 
-  add_custom_command(TARGET target
+  add_custom_command(TARGET <target>
                      PRE_BUILD | PRE_LINK | POST_BUILD
                      COMMAND command1 [ARGS] [args1...]
                      [COMMAND command2 [ARGS] [args2...] ...]
@@ -188,7 +207,10 @@ target is already built, the command will not execute.
                      [VERBATIM] [USES_TERMINAL])
 
 This defines a new command that will be associated with building the
-specified target.  When the command will happen is determined by which
+specified ``<target>``.  The ``<target>`` must be defined in the current
+directory; targets defined in other directories may not be specified.
+
+When the command will happen is determined by which
 of the following is specified:
 
 ``PRE_BUILD``

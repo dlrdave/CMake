@@ -1,17 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGlobalWatcomWMakeGenerator.h"
-#include "cmLocalUnixMakefileGenerator3.h"
+
+#include "cmDocumentationEntry.h"
 #include "cmMakefile.h"
+#include "cmState.h"
+#include "cmake.h"
 
 cmGlobalWatcomWMakeGenerator::cmGlobalWatcomWMakeGenerator(cmake* cm)
   : cmGlobalUnixMakefileGenerator3(cm)
@@ -33,10 +27,8 @@ cmGlobalWatcomWMakeGenerator::cmGlobalWatcomWMakeGenerator(cmake* cm)
   this->MakeSilentFlag = "-h";
 }
 
-void cmGlobalWatcomWMakeGenerator
-::EnableLanguage(std::vector<std::string>const& l,
-                 cmMakefile *mf,
-                 bool optional)
+void cmGlobalWatcomWMakeGenerator::EnableLanguage(
+  std::vector<std::string> const& l, cmMakefile* mf, bool optional)
 {
   // pick a default
   mf->AddDefinition("WATCOM", "1");
@@ -49,9 +41,8 @@ void cmGlobalWatcomWMakeGenerator
   this->cmGlobalUnixMakefileGenerator3::EnableLanguage(l, mf, optional);
 }
 
-//----------------------------------------------------------------------------
-void cmGlobalWatcomWMakeGenerator
-::GetDocumentation(cmDocumentationEntry& entry)
+void cmGlobalWatcomWMakeGenerator::GetDocumentation(
+  cmDocumentationEntry& entry)
 {
   entry.Name = cmGlobalWatcomWMakeGenerator::GetActualName();
   entry.Brief = "Generates Watcom WMake makefiles.";

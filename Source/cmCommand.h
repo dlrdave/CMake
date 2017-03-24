@@ -1,21 +1,15 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCommand_h
 #define cmCommand_h
 
-#include "cmObject.h"
-#include "cmListFileCache.h"
-#include "cmMakefile.h"
-#include "cmCommandArgumentsHelper.h"
+#include <cmConfigure.h>
+#include <string>
+#include <vector>
+
+class cmExecutionStatus;
+class cmMakefile;
+struct cmListFileArgument;
 
 /** \class cmCommand
  * \brief Superclass for all commands in CMake.
@@ -27,16 +21,16 @@
  * to support such features as enable/disable, inheritance,
  * documentation, and construction.
  */
-class cmCommand : public cmObject
+class cmCommand
 {
 public:
-  cmTypeMacro(cmCommand, cmObject);
-
   /**
-   * Construct the command. By default it is enabled with no makefile.
+   * Construct the command. By default it has no makefile.
    */
   cmCommand()
-    {this->Makefile = 0; this->Enabled = true;}
+    : Makefile(CM_NULLPTR)
+  {
+  }
 
   /**
    * Need virtual destructor to destroy real command type.
@@ -46,8 +40,7 @@ public:
   /**
    * Specify the makefile.
    */
-  void SetMakefile(cmMakefile*m)
-    {this->Makefile = m; }
+  void SetMakefile(cmMakefile* m) { this->Makefile = m; }
   cmMakefile* GetMakefile() { return this->Makefile; }
 
   /**
@@ -56,24 +49,14 @@ public:
    * arguments and then invokes the InitialPass.
    */
   virtual bool InvokeInitialPass(const std::vector<cmListFileArgument>& args,
-                                 cmExecutionStatus &status)
-    {
-    std::vector<std::string> expandedArguments;
-    if(!this->Makefile->ExpandArguments(args, expandedArguments))
-      {
-      // There was an error expanding arguments.  It was already
-      // reported, so we can skip this command without error.
-      return true;
-      }
-    return this->InitialPass(expandedArguments,status);
-    }
+                                 cmExecutionStatus& status);
 
   /**
    * This is called when the command is first encountered in
    * the CMakeLists.txt file.
    */
   virtual bool InitialPass(std::vector<std::string> const& args,
-                           cmExecutionStatus &) = 0;
+                           cmExecutionStatus&) = 0;
 
   /**
    * This is called at the end after all the information
@@ -96,21 +79,13 @@ public:
   /**
    * This determines if the command is invoked when in script mode.
    */
-  virtual bool IsScriptable() const
-    {
-    return false;
-    }
+  virtual bool IsScriptable() const { return false; }
 
   /**
-   * This is used to avoid including this command
-   * in documentation. This is mainly used by
-   * cmMacroHelperCommand and cmFunctionHelperCommand
-   * which cannot provide appropriate documentation.
+   * This determines if the command is defined in a cmake script.
+   * It is the case for cmMacroHelperCommand and cmFunctionHelperCommand.
    */
-  virtual bool ShouldAppearInDocumentation() const
-    {
-    return true;
-    }
+  virtual bool IsUserDefined() const { return false; }
 
   /**
    * The name of the command as specified in CMakeList.txt.
@@ -118,77 +93,23 @@ public:
   virtual std::string GetName() const = 0;
 
   /**
-   * Enable the command.
-   */
-  void EnabledOn()
-    {this->Enabled = true;}
-
-  /**
-   * Disable the command.
-   */
-  void EnabledOff()
-    {this->Enabled = false;}
-
-  /**
-   * Query whether the command is enabled.
-   */
-  bool GetEnabled() const
-    {return this->Enabled;}
-
-  /**
-   * Disable or enable the command.
-   */
-  void SetEnabled(bool enabled)
-    {this->Enabled = enabled;}
-
-  /**
    * Return the last error string.
    */
-  const char* GetError()
-    {
-      if(this->Error.empty())
-        {
-        this->Error = this->GetName();
-        this->Error += " unknown error.";
-        }
-      return this->Error.c_str();
-    }
+  const char* GetError();
 
   /**
    * Set the error message
    */
-  void SetError(const std::string& e)
-    {
-    this->Error = this->GetName();
-    this->Error += " ";
-    this->Error += e;
-    }
+  void SetError(const std::string& e);
 
-  /** Check if the command is disallowed by a policy.  */
-  bool Disallowed(cmPolicies::PolicyID pol, const char* e)
-    {
-    switch(this->Makefile->GetPolicyStatus(pol))
-      {
-      case cmPolicies::WARN:
-        this->Makefile->IssueMessage(cmake::AUTHOR_WARNING,
-          cmPolicies::GetPolicyWarning(pol));
-      case cmPolicies::OLD:
-        return false;
-      case cmPolicies::REQUIRED_IF_USED:
-      case cmPolicies::REQUIRED_ALWAYS:
-      case cmPolicies::NEW:
-        this->Makefile->IssueMessage(cmake::FATAL_ERROR, e);
-        break;
-      }
-    return true;
-    }
+private:
+  cmCommand(cmCommand const&);            // = delete;
+  cmCommand& operator=(cmCommand const&); // = delete;
 
 protected:
   cmMakefile* Makefile;
-  cmCommandArgumentsHelper Helper;
 
 private:
-  bool Enabled;
   std::string Error;
 };
 

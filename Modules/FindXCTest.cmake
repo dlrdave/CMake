@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #[=======================================================================[.rst:
 FindXCTest
 ----------
@@ -57,19 +60,6 @@ The following variables are set by including this module:
   The location of the XCTest Framework.
 
 #]=======================================================================]
-
-#=============================================================================
-# Copyright 2015 Gregor Jasny
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 find_path(XCTest_INCLUDE_DIR
   NAMES "XCTest/XCTest.h"
@@ -140,6 +130,10 @@ function(xctest_add_bundle target testee)
       set_target_properties(${target} PROPERTIES
         XCODE_ATTRIBUTE_BUNDLE_LOADER "$(TEST_HOST)"
         XCODE_ATTRIBUTE_TEST_HOST "$<TARGET_FILE:${testee}>")
+      if(NOT XCODE_VERSION VERSION_LESS 7.3)
+        set_target_properties(${target} PROPERTIES
+          LIBRARY_OUTPUT_DIRECTORY "$<TARGET_FILE_DIR:${testee}>/../PlugIns")
+      endif()
     else(XCODE)
       target_link_libraries(${target}
         PRIVATE -bundle_loader $<TARGET_FILE:${testee}>)

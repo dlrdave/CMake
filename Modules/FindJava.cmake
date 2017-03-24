@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindJava
 # --------
@@ -8,6 +11,7 @@
 # include files and libraries are.  The caller may set variable JAVA_HOME
 # to specify a Java installation prefix explicitly.
 #
+# See also the :module:`FindJNI` module to find Java development tools.
 #
 # Specify one or more of the following components as you call this find module. See example below.
 #
@@ -26,7 +30,7 @@
 #   Java_JAVA_EXECUTABLE      = the full path to the Java runtime
 #   Java_JAVAC_EXECUTABLE     = the full path to the Java compiler
 #   Java_JAVAH_EXECUTABLE     = the full path to the Java header generator
-#   Java_JAVADOC_EXECUTABLE   = the full path to the Java documention generator
+#   Java_JAVADOC_EXECUTABLE   = the full path to the Java documentation generator
 #   Java_IDLJ_EXECUTABLE      = the full path to the Java idl compiler
 #   Java_JAR_EXECUTABLE       = the full path to the Java archiver
 #   Java_JARSIGNER_EXECUTABLE = the full path to the Java jar signer
@@ -54,8 +58,6 @@
 # ::
 #
 #   Java_FOUND                    - TRUE if all components are found.
-#   Java_INCLUDE_DIRS             - Full paths to all include dirs.
-#   Java_LIBRARIES                - Full paths to all libraries.
 #   Java_<component>_FOUND        - TRUE if <component> is found.
 #
 #
@@ -67,20 +69,6 @@
 #   find_package(Java)
 #   find_package(Java COMPONENTS Runtime)
 #   find_package(Java COMPONENTS Development)
-
-#=============================================================================
-# Copyright 2002-2009 Kitware, Inc.
-# Copyright 2009-2011 Mathieu Malaterre <mathieu.malaterre@gmail.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 include(${CMAKE_CURRENT_LIST_DIR}/CMakeFindJavaCommon.cmake)
 
@@ -98,6 +86,14 @@ list(APPEND _JAVA_HINTS
   "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\1.5;JavaHome]/bin"
   "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\1.4;JavaHome]/bin"
   "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Development Kit\\1.3;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\2.0;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.9;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.8;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.7;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\2.6;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.5;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.4;JavaHome]/bin"
+  "[HKEY_LOCAL_MACHINE\\SOFTWARE\\JavaSoft\\Java Runtime Environment\\1.3;JavaHome]/bin"
   )
 # Hard-coded guesses should still go in PATHS. This ensures that the user
 # environment can always override hard guesses.
@@ -228,12 +224,12 @@ if(Java_FIND_COMPONENTS)
       endif()
     elseif(component STREQUAL "IdlJ")
       list(APPEND _JAVA_REQUIRED_VARS Java_IDLJ_EXECUTABLE)
-      if(Java_IdlJ_EXECUTABLE)
-        set(Java_Extra_FOUND TRUE)
+      if(Java_IDLJ_EXECUTABLE)
+        set(Java_IdlJ_FOUND TRUE)
       endif()
     elseif(component STREQUAL "JarSigner")
       list(APPEND _JAVA_REQUIRED_VARS Java_JARSIGNER_EXECUTABLE)
-      if(Java_IDLJ_EXECUTABLE)
+      if(Java_JARSIGNER_EXECUTABLE)
         set(Java_JarSigner_FOUND TRUE)
       endif()
     else()
@@ -274,4 +270,3 @@ mark_as_advanced(
 set(JAVA_RUNTIME ${Java_JAVA_EXECUTABLE})
 set(JAVA_ARCHIVE ${Java_JAR_EXECUTABLE})
 set(JAVA_COMPILE ${Java_JAVAC_EXECUTABLE})
-

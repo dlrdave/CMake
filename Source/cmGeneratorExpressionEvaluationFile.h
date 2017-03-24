@@ -1,33 +1,32 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2013 Stephen Kelly <steveire@gmail.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGeneratorExpressionEvaluationFile_h
 #define cmGeneratorExpressionEvaluationFile_h
 
-#include "cmStandardIncludes.h"
-#include <sys/types.h>
-#include <cmsys/auto_ptr.hxx>
+#include <cmConfigure.h> // IWYU pragma: keep
+
+#include <map>
+#include <string>
+#include <vector>
 
 #include "cmGeneratorExpression.h"
+#include "cm_auto_ptr.hxx"
+
+#if defined(_MSC_VER)
+typedef unsigned short mode_t;
+#else
+#include <sys/types.h>
+#endif
 
 class cmLocalGenerator;
 
-//----------------------------------------------------------------------------
 class cmGeneratorExpressionEvaluationFile
 {
 public:
-  cmGeneratorExpressionEvaluationFile(const std::string &input,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> outputFileExpr,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> condition,
-        bool inputIsContent);
+  cmGeneratorExpressionEvaluationFile(
+    const std::string& input,
+    CM_AUTO_PTR<cmCompiledGeneratorExpression> outputFileExpr,
+    CM_AUTO_PTR<cmCompiledGeneratorExpression> condition, bool inputIsContent);
 
   void Generate(cmLocalGenerator* lg);
 
@@ -39,12 +38,12 @@ private:
   void Generate(cmLocalGenerator* lg, const std::string& config,
                 const std::string& lang,
                 cmCompiledGeneratorExpression* inputExpression,
-                std::map<std::string, std::string> &outputFiles, mode_t perm);
+                std::map<std::string, std::string>& outputFiles, mode_t perm);
 
 private:
   const std::string Input;
-  const cmsys::auto_ptr<cmCompiledGeneratorExpression> OutputFileExpr;
-  const cmsys::auto_ptr<cmCompiledGeneratorExpression> Condition;
+  const CM_AUTO_PTR<cmCompiledGeneratorExpression> OutputFileExpr;
+  const CM_AUTO_PTR<cmCompiledGeneratorExpression> Condition;
   std::vector<std::string> Files;
   const bool InputIsContent;
 };

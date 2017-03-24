@@ -1,30 +1,48 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # CPackDeb
 # --------
 #
-# The builtin (binary) CPack Deb generator (Unix only)
+# The built in (binary) CPack Deb generator (Unix only)
 #
 # Variables specific to CPack Debian (DEB) generator
 # ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 #
-# CPackDeb may be used to create Deb package using CPack.
-# CPackDeb is a CPack generator thus it uses the ``CPACK_XXX`` variables
-# used by CPack : https://cmake.org/Wiki/CMake:CPackConfiguration.
-# CPackDeb generator should work on any linux host but it will produce
-# better deb package when Debian specific tools 'dpkg-xxx' are usable on
+# CPackDeb may be used to create Deb package using :module:`CPack`.
+# CPackDeb is a :module:`CPack` generator thus it uses the ``CPACK_XXX``
+# variables used by :module:`CPack`.
+#
+# CPackDeb generator should work on any Linux host but it will produce
+# better deb package when Debian specific tools ``dpkg-xxx`` are usable on
 # the build system.
 #
 # CPackDeb has specific features which are controlled by the specifics
 # :code:`CPACK_DEBIAN_XXX` variables.
 #
 # :code:`CPACK_DEBIAN_<COMPONENT>_XXXX` variables may be used in order to have
-# **component** specific values.  Note however that ``<COMPONENT>`` refers to the
-# **grouping name** written in upper case. It may be either a component name or
-# a component GROUP name.
+# **component** specific values.  Note however that ``<COMPONENT>`` refers to
+# the **grouping name** written in upper case. It may be either a component name
+# or a component GROUP name.
 #
-# You'll find a detailed usage on the wiki:
-# https://cmake.org/Wiki/CMake:CPackPackageGenerators#DEB_.28UNIX_only.29 .
-# However as a handy reminder here comes the list of specific variables:
+# Here are some CPackDeb wiki resources that are here for historic reasons and
+# are no longer maintained but may still prove useful:
+#
+#  - https://cmake.org/Wiki/CMake:CPackConfiguration
+#  - https://cmake.org/Wiki/CMake:CPackPackageGenerators#DEB_.28UNIX_only.29
+#
+# List of CPackDEB specific variables:
+#
+# .. variable:: CPACK_DEB_COMPONENT_INSTALL
+#
+#  Enable component packaging for CPackDEB
+#
+#  * Mandatory : NO
+#  * Default   : OFF
+#
+#  If enabled (ON) multiple packages are generated. By default a single package
+#  containing files of all components is generated.
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_NAME
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_NAME
@@ -42,6 +60,32 @@
 #
 #  See https://www.debian.org/doc/debian-policy/ch-controlfields.html#s-f-Source
 #
+# .. variable:: CPACK_DEBIAN_FILE_NAME
+#               CPACK_DEBIAN_<COMPONENT>_FILE_NAME
+#
+#  Package file name.
+#
+#  * Mandatory : YES
+#  * Default   : ``<CPACK_PACKAGE_FILE_NAME>[-<component>].deb``
+#
+#  This may be set to ``DEB-DEFAULT`` to allow CPackDeb to generate package file
+#  name by itself in deb format::
+#
+#    <PackageName>_<VersionNumber>-<DebianRevisionNumber>_<DebianArchitecture>.deb
+#
+#  Alternatively provided package file name must end with ``.deb`` suffix.
+#
+#  .. note::
+#
+#    Preferred setting of this variable is ``DEB-DEFAULT`` but for backward
+#    compatibility with CPackDeb in CMake prior to version 3.6 this feature
+#    is disabled by default.
+#
+#  .. note::
+#
+#    By using non default filenames duplicate names may occur. Duplicate files
+#    get overwritten and it is up to the packager to set the variables in a
+#    manner that will prevent such errors.
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_VERSION
 #
@@ -50,15 +94,27 @@
 #  * Mandatory : YES
 #  * Default   : :variable:`CPACK_PACKAGE_VERSION`
 #
+# .. variable:: CPACK_DEBIAN_PACKAGE_RELEASE
+#
+#  The Debian package release - Debian revision number.
+#
+#  * Mandatory : YES
+#  * Default   : 1
+#
+#  This is the numbering of the DEB package itself, i.e. the version of the
+#  packaging and not the version of the content (see
+#  :variable:`CPACK_DEBIAN_PACKAGE_VERSION`). One may change the default value
+#  if the previous packaging was buggy and/or you want to put here a fancy Linux
+#  distro specific numbering.
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_ARCHITECTURE
+#               CPACK_DEBIAN_<COMPONENT>_PACKAGE_ARCHITECTURE
 #
 #  The Debian package architecture
 #
 #  * Mandatory : YES
 #  * Default   : Output of :code:`dpkg --print-architecture` (or :code:`i386`
 #    if :code:`dpkg` is not found)
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_DEPENDS
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_DEPENDS
@@ -87,6 +143,13 @@
 #
 #    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6 (>= 2.3.1-6), libc6 (< 2.4)")
 #
+# .. variable:: CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS
+#
+#  Sets inter component dependencies if listed with
+#  :variable:`CPACK_COMPONENT_<compName>_DEPENDS` variables.
+#
+#  * Mandatory : NO
+#  * Default   : -
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_MAINTAINER
 #
@@ -94,7 +157,6 @@
 #
 #  * Mandatory : YES
 #  * Default   : :code:`CPACK_PACKAGE_CONTACT`
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_DESCRIPTION
 #               CPACK_COMPONENT_<COMPONENT>_DESCRIPTION
@@ -114,19 +176,41 @@
 #  Set Section control field e.g. admin, devel, doc, ...
 #
 #  * Mandatory : YES
-#  * Default   : 'devel'
+#  * Default   : "devel"
 #
 #  See https://www.debian.org/doc/debian-policy/ch-archive.html#s-subsections
 #
+# .. variable:: CPACK_DEBIAN_ARCHIVE_TYPE
+#
+#  The archive format used for creating the Debian package.
+#
+#  * Mandatory : YES
+#  * Default   : "paxr"
+#
+#  Possible values are:
+#
+#  - paxr
+#  - gnutar
+#
+#  .. note::
+#
+#    Default pax archive format is the most portable format and generates
+#    packages that do not treat sparse files specially.
+#    GNU tar format on the other hand supports longer filenames.
 #
 # .. variable:: CPACK_DEBIAN_COMPRESSION_TYPE
 #
 #  The compression used for creating the Debian package.
-#  Possible values are: lzma, xz, bzip2 and gzip.
 #
 #  * Mandatory : YES
-#  * Default   : 'gzip'
+#  * Default   : "gzip"
 #
+#  Possible values are:
+#
+#  - lzma
+#  - xz
+#  - bzip2
+#  - gzip
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_PRIORITY
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_PRIORITY
@@ -135,10 +219,9 @@
 #  extra
 #
 #  * Mandatory : YES
-#  * Default   : 'optional'
+#  * Default   : "optional"
 #
 #  See https://www.debian.org/doc/debian-policy/ch-archive.html#s-priorities
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_HOMEPAGE
 #
@@ -153,7 +236,6 @@
 #
 #    The content of this field is a simple URL without any surrounding
 #    characters such as <>.
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_SHLIBDEPS
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_SHLIBDEPS
@@ -173,7 +255,6 @@
 #    if you use this feature, because if you don't :code:`dpkg-shlibdeps`
 #    may fail to find your own shared libs.
 #    See https://cmake.org/Wiki/CMake_RPATH_handling.
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_DEBUG
 #
@@ -238,7 +319,6 @@
 #
 #  See https://www.debian.org/doc/debian-policy/ch-relationships.html#s-breaks
 #
-#
 # .. variable:: CPACK_DEBIAN_PACKAGE_CONFLICTS
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_CONFLICTS
 #
@@ -280,7 +360,6 @@
 #
 #  See https://www.debian.org/doc/debian-policy/ch-relationships.html#s-virtual
 #
-#
 # .. variable:: CPACK_DEBIAN_PACKAGE_REPLACES
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_REPLACES
 #
@@ -296,7 +375,6 @@
 #      installations.
 #
 #  See http://www.debian.org/doc/debian-policy/ch-relationships.html#s-binarydeps
-#
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_RECOMMENDS
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_RECOMMENDS
@@ -314,7 +392,6 @@
 #
 #  See http://www.debian.org/doc/debian-policy/ch-relationships.html#s-binarydeps
 #
-#
 # .. variable:: CPACK_DEBIAN_PACKAGE_SUGGESTS
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_SUGGESTS
 #
@@ -330,6 +407,31 @@
 #
 #  See http://www.debian.org/doc/debian-policy/ch-relationships.html#s-binarydeps
 #
+# .. variable:: CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS
+#
+#  * Mandatory : NO
+#  * Default   : OFF
+#
+#  Allows to generate shlibs control file automatically. Compatibility is defined by
+#  :variable:`CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY` variable value.
+#
+#  .. note::
+#
+#    Libraries are only considered if they have both library name and version
+#    set. This can be done by setting SOVERSION property with
+#    :command:`set_target_properties` command.
+#
+# .. variable:: CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY
+#
+#  Compatibility policy for auto-generated shlibs control file.
+#
+#  * Mandatory : NO
+#  * Default   : "="
+#
+#  Defines compatibility policy for auto-generated shlibs control file.
+#  Possible values: "=", ">="
+#
+#  See https://www.debian.org/doc/debian-policy/ch-sharedlibs.html#s-sharedlibs-shlibdeps
 #
 # .. variable:: CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA
 #               CPACK_DEBIAN_<COMPONENT>_PACKAGE_CONTROL_EXTRA
@@ -396,20 +498,6 @@
 #    This value is not interpreted. It is possible to pass an optional
 #    revision number of the referenced source package as well.
 
-#=============================================================================
-# Copyright 2007-2009 Kitware, Inc.
-# Copyright 2007-2009 Mathieu Malaterre <mathieu.malaterre@gmail.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
 # CPack script for creating Debian package
 # Author: Mathieu Malaterre
 #
@@ -422,6 +510,49 @@ endif()
 if(NOT UNIX)
   message(FATAL_ERROR "CPackDeb.cmake may only be used under UNIX.")
 endif()
+
+function(cpack_deb_variable_fallback OUTPUT_VAR_NAME)
+  set(FALLBACK_VAR_NAMES ${ARGN})
+
+  foreach(variable_name IN LISTS FALLBACK_VAR_NAMES)
+    if(${variable_name})
+      set(${OUTPUT_VAR_NAME} "${${variable_name}}" PARENT_SCOPE)
+      break()
+    endif()
+  endforeach()
+endfunction()
+
+function(get_component_package_name var component)
+  string(TOUPPER "${component}" component_upcase)
+  if(CPACK_DEBIAN_${component_upcase}_PACKAGE_NAME)
+    string(TOLOWER "${CPACK_DEBIAN_${component_upcase}_PACKAGE_NAME}" package_name)
+  else()
+    string(TOLOWER "${CPACK_DEBIAN_PACKAGE_NAME}-${component}" package_name)
+  endif()
+
+  set("${var}" "${package_name}" PARENT_SCOPE)
+endfunction()
+
+#extract library name and version for given shared object
+function(extract_so_info shared_object libname version)
+  if(READELF_EXECUTABLE)
+    execute_process(COMMAND "${READELF_EXECUTABLE}" -d "${shared_object}"
+      WORKING_DIRECTORY "${CPACK_TEMPORARY_DIRECTORY}"
+      RESULT_VARIABLE result
+      OUTPUT_VARIABLE output
+      ERROR_QUIET
+      OUTPUT_STRIP_TRAILING_WHITESPACE)
+    if(result EQUAL 0)
+      string(REGEX MATCH "\\(SONAME\\)[^\n]*\\[([^\n]+)\\.so\\.([^\n]*)\\]" soname "${output}")
+      set(${libname} "${CMAKE_MATCH_1}" PARENT_SCOPE)
+      set(${version} "${CMAKE_MATCH_2}" PARENT_SCOPE)
+    else()
+      message(WARNING "Error running readelf for \"${shared_object}\"")
+    endif()
+  else()
+    message(FATAL_ERROR "Readelf utility is not available.")
+  endif()
+endfunction()
 
 function(cpack_deb_prepare_package_vars)
   # CPACK_DEBIAN_PACKAGE_SHLIBDEPS
@@ -447,12 +578,54 @@ function(cpack_deb_prepare_package_vars)
     endif()
   endif()
 
+  if(CPACK_DEBIAN_PACKAGE_SHLIBDEPS OR CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS)
+    # Generating binary list - Get type of all install files
+    cmake_policy(PUSH)
+      # Tell file(GLOB_RECURSE) not to follow directory symlinks
+      # even if the project does not set this policy to NEW.
+      cmake_policy(SET CMP0009 NEW)
+      file(GLOB_RECURSE FILE_PATHS_ LIST_DIRECTORIES false RELATIVE "${WDIR}" "${WDIR}/*")
+    cmake_policy(POP)
+
+    find_program(FILE_EXECUTABLE file)
+    if(NOT FILE_EXECUTABLE)
+      message(FATAL_ERROR "CPackDeb: file utility is not available. CPACK_DEBIAN_PACKAGE_SHLIBDEPS and CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS options are not available.")
+    endif()
+
+    # get file info so that we can determine if file is executable or not
+    unset(CPACK_DEB_INSTALL_FILES)
+    foreach(FILE_ IN LISTS FILE_PATHS_)
+      execute_process(COMMAND env LC_ALL=C ${FILE_EXECUTABLE} "./${FILE_}"
+        WORKING_DIRECTORY "${WDIR}"
+        RESULT_VARIABLE FILE_RESULT_
+        OUTPUT_VARIABLE INSTALL_FILE_)
+      if(NOT FILE_RESULT_ EQUAL 0)
+        message (FATAL_ERROR "CPackDeb: execution of command: '${FILE_EXECUTABLE} ./${FILE_}' failed with exit code: ${FILE_RESULT_}")
+      endif()
+      list(APPEND CPACK_DEB_INSTALL_FILES "${INSTALL_FILE_}")
+    endforeach()
+
+    # Only dynamically linked ELF files are included
+    # Extract only file name infront of ":"
+    foreach(_FILE IN LISTS CPACK_DEB_INSTALL_FILES)
+      if(_FILE MATCHES "ELF.*dynamically linked")
+        string(REGEX MATCH "(^.*):" _FILE_NAME "${_FILE}")
+        list(APPEND CPACK_DEB_BINARY_FILES "${CMAKE_MATCH_1}")
+        set(CONTAINS_EXECUTABLE_FILES_ TRUE)
+      endif()
+      if(_FILE MATCHES "ELF.*shared object")
+        string(REGEX MATCH "(^.*):" _FILE_NAME "${_FILE}")
+        list(APPEND CPACK_DEB_SHARED_OBJECT_FILES "${CMAKE_MATCH_1}")
+      endif()
+    endforeach()
+  endif()
+
   if(CPACK_DEBIAN_PACKAGE_SHLIBDEPS)
     # dpkg-shlibdeps is a Debian utility for generating dependency list
     find_program(SHLIBDEPS_EXECUTABLE dpkg-shlibdeps)
 
     if(SHLIBDEPS_EXECUTABLE)
-      # Check version of the dpkg-shlibdeps tool using CPackRPM method
+      # Check version of the dpkg-shlibdeps tool using CPackDEB method
       execute_process(COMMAND env LC_ALL=C ${SHLIBDEPS_EXECUTABLE} --version
         OUTPUT_VARIABLE _TMP_VERSION
         ERROR_QUIET
@@ -468,33 +641,6 @@ function(cpack_deb_prepare_package_vars)
         message("CPackDeb Debug: dpkg-shlibdeps version is <${SHLIBDEPS_EXECUTABLE_VERSION}>")
       endif()
 
-      # Generating binary list - Get type of all install files
-      cmake_policy(PUSH)
-        # Tell file(GLOB_RECURSE) not to follow directory symlinks
-        # even if the project does not set this policy to NEW.
-        cmake_policy(SET CMP0009 NEW)
-        file(GLOB_RECURSE FILE_PATHS_ LIST_DIRECTORIES false RELATIVE "${WDIR}" "${WDIR}/*")
-      cmake_policy(POP)
-
-      # get file info so that we can determine if file is executable or not
-      unset(CPACK_DEB_INSTALL_FILES)
-      foreach(FILE_ IN LISTS FILE_PATHS_)
-        execute_process(COMMAND file "./${FILE_}"
-          WORKING_DIRECTORY "${WDIR}"
-          OUTPUT_VARIABLE INSTALL_FILE_)
-        list(APPEND CPACK_DEB_INSTALL_FILES "${INSTALL_FILE_}")
-      endforeach()
-
-      # Only dynamically linked ELF files are included
-      # Extract only file name infront of ":"
-      foreach(_FILE ${CPACK_DEB_INSTALL_FILES})
-        if( ${_FILE} MATCHES "ELF.*dynamically linked")
-           string(REGEX MATCH "(^.*):" _FILE_NAME "${_FILE}")
-           list(APPEND CPACK_DEB_BINARY_FILES "${CMAKE_MATCH_1}")
-           set(CONTAINS_EXECUTABLE_FILES_ TRUE)
-        endif()
-      endforeach()
-
       if(CONTAINS_EXECUTABLE_FILES_)
         message("CPackDeb: - Generating dependency list")
 
@@ -503,6 +649,9 @@ function(cpack_deb_prepare_package_vars)
         # but standard debian package should not have anything that can collide with this file or directory
         file(MAKE_DIRECTORY ${CPACK_TEMPORARY_DIRECTORY}/debian)
         file(WRITE ${CPACK_TEMPORARY_DIRECTORY}/debian/control "")
+
+        # Create a DEBIAN directory so that dpkg-shlibdeps can find the package dir when resolving $ORIGIN.
+        file(MAKE_DIRECTORY "${CPACK_TEMPORARY_DIRECTORY}/DEBIAN")
 
         # Add --ignore-missing-info if the tool supports it
         execute_process(COMMAND env LC_ALL=C ${SHLIBDEPS_EXECUTABLE} --help
@@ -544,6 +693,9 @@ function(cpack_deb_prepare_package_vars)
         # Remove blank control file
         # Might not be safe if package actual contain file or directory named debian
         file(REMOVE_RECURSE "${CPACK_TEMPORARY_DIRECTORY}/debian")
+
+        # remove temporary directory that was created only for dpkg-shlibdeps execution
+        file(REMOVE_RECURSE "${CPACK_TEMPORARY_DIRECTORY}/DEBIAN")
       else()
         if(CPACK_DEBIAN_PACKAGE_DEBUG)
           message(AUTHOR_WARNING "CPackDeb Debug: Using only user-provided depends because package does not contain executable files that link to shared libraries.")
@@ -580,7 +732,9 @@ function(cpack_deb_prepare_package_vars)
   endif()
 
   # Architecture: (mandatory)
-  if(NOT CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
+  if(CPACK_DEB_PACKAGE_COMPONENT AND CPACK_DEBIAN_${_local_component_name}_PACKAGE_ARCHITECTURE)
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "${CPACK_DEBIAN_${_local_component_name}_PACKAGE_ARCHITECTURE}")
+  elseif(NOT CPACK_DEBIAN_PACKAGE_ARCHITECTURE)
     # There is no such thing as i686 architecture on debian, you should use i386 instead
     # $ dpkg --print-architecture
     find_program(DPKG_CMD dpkg)
@@ -624,6 +778,25 @@ function(cpack_deb_prepare_package_vars)
         endif()
       endif()
     endforeach()
+
+    if(CPACK_DEBIAN_ENABLE_COMPONENT_DEPENDS)
+      set(COMPONENT_DEPENDS "")
+      foreach (_PACK ${CPACK_COMPONENT_${_local_component_name}_DEPENDS})
+        get_component_package_name(_PACK_NAME "${_PACK}")
+        if(COMPONENT_DEPENDS)
+          set(COMPONENT_DEPENDS "${_PACK_NAME} (= ${CPACK_DEBIAN_PACKAGE_VERSION}), ${COMPONENT_DEPENDS}")
+        else()
+          set(COMPONENT_DEPENDS "${_PACK_NAME} (= ${CPACK_DEBIAN_PACKAGE_VERSION})")
+        endif()
+      endforeach()
+      if(COMPONENT_DEPENDS)
+        if(CPACK_DEBIAN_PACKAGE_DEPENDS)
+          set(CPACK_DEBIAN_PACKAGE_DEPENDS "${COMPONENT_DEPENDS}, ${CPACK_DEBIAN_PACKAGE_DEPENDS}")
+        else()
+          set(CPACK_DEBIAN_PACKAGE_DEPENDS "${COMPONENT_DEPENDS}")
+        endif()
+      endif()
+    endif()
   endif()
 
   # at this point, the CPACK_DEBIAN_PACKAGE_DEPENDS is properly set
@@ -631,7 +804,7 @@ function(cpack_deb_prepare_package_vars)
   # Append automatically discovered dependencies .
   if(NOT "${CPACK_DEBIAN_PACKAGE_AUTO_DEPENDS}" STREQUAL "")
     if (CPACK_DEBIAN_PACKAGE_DEPENDS)
-      set (CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_AUTO_DEPENDS}, ${CPACK_DEBIAN_PACKAGE_DEPENDS}")
+      set (CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}, ${CPACK_DEBIAN_PACKAGE_AUTO_DEPENDS}")
     else ()
       set (CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_AUTO_DEPENDS}")
     endif ()
@@ -681,11 +854,23 @@ function(cpack_deb_prepare_package_vars)
     set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
   endif()
 
+  if(CPACK_DEBIAN_ARCHIVE_TYPE)
+    set(archive_types_ "paxr;gnutar")
+    cmake_policy(PUSH)
+      cmake_policy(SET CMP0057 NEW)
+      if(NOT CPACK_DEBIAN_ARCHIVE_TYPE IN_LIST archive_types_)
+        message(FATAL_ERROR "CPACK_DEBIAN_ARCHIVE_TYPE set to unsupported"
+          "type ${CPACK_DEBIAN_ARCHIVE_TYPE}")
+      endif()
+    cmake_policy(POP)
+  else()
+    set(CPACK_DEBIAN_ARCHIVE_TYPE "paxr")
+  endif()
+
   # Compression: (recommended)
   if(NOT CPACK_DEBIAN_COMPRESSION_TYPE)
     set(CPACK_DEBIAN_COMPRESSION_TYPE "gzip")
   endif()
-
 
   # Recommends:
   # You should set: CPACK_DEBIAN_PACKAGE_RECOMMENDS
@@ -712,13 +897,93 @@ function(cpack_deb_prepare_package_vars)
         set(CPACK_DEBIAN_${VAR_NAME_} "${CPACK_DEBIAN_${_local_component_name}_${VAR_NAME_}}")
       endif()
     endforeach()
+    get_component_package_name(CPACK_DEBIAN_PACKAGE_NAME ${_local_component_name})
+  endif()
 
-    if(CPACK_DEBIAN_${_local_component_name}_PACKAGE_NAME)
-      string(TOLOWER "${CPACK_DEBIAN_${_local_component_name}_PACKAGE_NAME}" CPACK_DEBIAN_PACKAGE_NAME)
+  set(CPACK_DEBIAN_PACKAGE_SHLIBS_LIST "")
+
+  if (NOT CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY)
+    set(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY "=")
+  endif()
+
+  find_program(READELF_EXECUTABLE NAMES readelf)
+
+  if(CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS)
+    if(READELF_EXECUTABLE)
+      foreach(_FILE IN LISTS CPACK_DEB_SHARED_OBJECT_FILES)
+        extract_so_info("${_FILE}" libname soversion)
+        if(libname AND soversion)
+          list(APPEND CPACK_DEBIAN_PACKAGE_SHLIBS_LIST
+               "${libname} ${soversion} ${CPACK_DEBIAN_PACKAGE_NAME} (${CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS_POLICY} ${CPACK_DEBIAN_PACKAGE_VERSION})")
+        else()
+          message(AUTHOR_WARNING "Shared library '${_FILE}' is missing soname or soversion. Library will not be added to DEBIAN/shlibs control file.")
+        endif()
+      endforeach()
+      if (CPACK_DEBIAN_PACKAGE_SHLIBS_LIST)
+        string(REPLACE ";" "\n" CPACK_DEBIAN_PACKAGE_SHLIBS_LIST "${CPACK_DEBIAN_PACKAGE_SHLIBS_LIST}")
+      endif()
     else()
-      string(TOLOWER "${CPACK_DEBIAN_PACKAGE_NAME}-${CPACK_DEB_PACKAGE_COMPONENT}" CPACK_DEBIAN_PACKAGE_NAME)
+      message(FATAL_ERROR "Readelf utility is not available. CPACK_DEBIAN_PACKAGE_GENERATE_SHLIBS option is not available.")
     endif()
   endif()
+
+  # add ldconfig call in default postrm and postint
+  set(CPACK_ADD_LDCONFIG_CALL 0)
+  foreach(_FILE ${CPACK_DEB_SHARED_OBJECT_FILES})
+    get_filename_component(_DIR ${_FILE} DIRECTORY)
+    # all files in CPACK_DEB_SHARED_OBJECT_FILES have dot at the beginning
+    if(_DIR STREQUAL "./lib" OR _DIR STREQUAL "./usr/lib")
+      set(CPACK_ADD_LDCONFIG_CALL 1)
+    endif()
+  endforeach()
+
+  if(CPACK_ADD_LDCONFIG_CALL)
+    set(CPACK_DEBIAN_GENERATE_POSTINST 1)
+    set(CPACK_DEBIAN_GENERATE_POSTRM 1)
+    foreach(f ${PACKAGE_CONTROL_EXTRA})
+      get_filename_component(n "${f}" NAME)
+      if("${n}" STREQUAL "postinst")
+        set(CPACK_DEBIAN_GENERATE_POSTINST 0)
+      endif()
+      if("${n}" STREQUAL "postrm")
+        set(CPACK_DEBIAN_GENERATE_POSTRM 0)
+      endif()
+    endforeach()
+  else()
+    set(CPACK_DEBIAN_GENERATE_POSTINST 0)
+    set(CPACK_DEBIAN_GENERATE_POSTRM 0)
+  endif()
+
+  if(NOT CPACK_DEBIAN_PACKAGE_RELEASE)
+    set(CPACK_DEBIAN_PACKAGE_RELEASE 1)
+  endif()
+
+
+  cpack_deb_variable_fallback("CPACK_DEBIAN_FILE_NAME"
+    "CPACK_DEBIAN_${_local_component_name}_FILE_NAME"
+    "CPACK_DEBIAN_FILE_NAME")
+  if(CPACK_DEBIAN_FILE_NAME)
+    if(CPACK_DEBIAN_FILE_NAME STREQUAL "DEB-DEFAULT")
+      # Patch package file name to be in corrent debian format:
+      # <foo>_<VersionNumber>-<DebianRevisionNumber>_<DebianArchitecture>.deb
+      set(CPACK_OUTPUT_FILE_NAME
+        "${CPACK_DEBIAN_PACKAGE_NAME}_${CPACK_DEBIAN_PACKAGE_VERSION}-${CPACK_DEBIAN_PACKAGE_RELEASE}_${CPACK_DEBIAN_PACKAGE_ARCHITECTURE}.deb")
+    else()
+      cmake_policy(PUSH)
+        cmake_policy(SET CMP0010 NEW)
+        if(NOT CPACK_DEBIAN_FILE_NAME MATCHES ".*\\.deb")
+      cmake_policy(POP)
+          message(FATAL_ERROR "'${CPACK_DEBIAN_FILE_NAME}' is not a valid DEB package file name as it must end with '.deb'!")
+        endif()
+      cmake_policy(POP)
+
+      set(CPACK_OUTPUT_FILE_NAME "${CPACK_DEBIAN_FILE_NAME}")
+    endif()
+
+    set(CPACK_TEMPORARY_PACKAGE_FILE_NAME "${CPACK_TOPLEVEL_DIRECTORY}/${CPACK_OUTPUT_FILE_NAME}")
+    get_filename_component(BINARY_DIR "${CPACK_OUTPUT_FILE_PATH}" DIRECTORY)
+    set(CPACK_OUTPUT_FILE_PATH "${BINARY_DIR}/${CPACK_OUTPUT_FILE_NAME}")
+  endif() # else() back compatibility - don't change the name
 
   # Print out some debug information if we were asked for that
   if(CPACK_DEBIAN_PACKAGE_DEBUG)
@@ -749,6 +1014,8 @@ function(cpack_deb_prepare_package_vars)
   #endif()
 
   # move variables to parent scope so that they may be used to create debian package
+  set(GEN_CPACK_OUTPUT_FILE_NAME "${CPACK_OUTPUT_FILE_NAME}" PARENT_SCOPE)
+  set(GEN_CPACK_TEMPORARY_PACKAGE_FILE_NAME "${CPACK_TEMPORARY_PACKAGE_FILE_NAME}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_NAME "${CPACK_DEBIAN_PACKAGE_NAME}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_VERSION "${CPACK_DEBIAN_PACKAGE_VERSION}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_SECTION "${CPACK_DEBIAN_PACKAGE_SECTION}" PARENT_SCOPE)
@@ -757,6 +1024,7 @@ function(cpack_deb_prepare_package_vars)
   set(GEN_CPACK_DEBIAN_PACKAGE_MAINTAINER "${CPACK_DEBIAN_PACKAGE_MAINTAINER}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_DESCRIPTION "${CPACK_DEBIAN_PACKAGE_DESCRIPTION}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_DEPENDS "${CPACK_DEBIAN_PACKAGE_DEPENDS}" PARENT_SCOPE)
+  set(GEN_CPACK_DEBIAN_ARCHIVE_TYPE "${CPACK_DEBIAN_ARCHIVE_TYPE}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_COMPRESSION_TYPE "${CPACK_DEBIAN_COMPRESSION_TYPE}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_RECOMMENDS "${CPACK_DEBIAN_PACKAGE_RECOMMENDS}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_SUGGESTS "${CPACK_DEBIAN_PACKAGE_SUGGESTS}" PARENT_SCOPE)
@@ -767,11 +1035,14 @@ function(cpack_deb_prepare_package_vars)
   set(GEN_CPACK_DEBIAN_PACKAGE_CONFLICTS "${CPACK_DEBIAN_PACKAGE_CONFLICTS}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_PROVIDES "${CPACK_DEBIAN_PACKAGE_PROVIDES}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_REPLACES "${CPACK_DEBIAN_PACKAGE_REPLACES}" PARENT_SCOPE)
+  set(GEN_CPACK_DEBIAN_PACKAGE_SHLIBS "${CPACK_DEBIAN_PACKAGE_SHLIBS_LIST}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA "${CPACK_DEBIAN_PACKAGE_CONTROL_EXTRA}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION
       "${CPACK_DEBIAN_PACKAGE_CONTROL_STRICT_PERMISSION}" PARENT_SCOPE)
   set(GEN_CPACK_DEBIAN_PACKAGE_SOURCE
      "${CPACK_DEBIAN_PACKAGE_SOURCE}" PARENT_SCOPE)
+  set(GEN_CPACK_DEBIAN_GENERATE_POSTINST "${CPACK_DEBIAN_GENERATE_POSTINST}" PARENT_SCOPE)
+  set(GEN_CPACK_DEBIAN_GENERATE_POSTRM "${CPACK_DEBIAN_GENERATE_POSTRM}" PARENT_SCOPE)
   set(GEN_WDIR "${WDIR}" PARENT_SCOPE)
 endfunction()
 

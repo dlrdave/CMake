@@ -1,20 +1,12 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2015 Geoffrey Viola <geoffrey.viola@asirobots.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmLocalGhsMultiGenerator.h"
-#include "cmGlobalGhsMultiGenerator.h"
-#include "cmGeneratorTarget.h"
-#include "cmMakefile.h"
-#include "cmGhsMultiTargetGenerator.h"
+
 #include "cmGeneratedFileStream.h"
+#include "cmGeneratorTarget.h"
+#include "cmGhsMultiTargetGenerator.h"
+#include "cmGlobalGhsMultiGenerator.h"
+#include "cmMakefile.h"
 
 cmLocalGhsMultiGenerator::cmLocalGhsMultiGenerator(cmGlobalGenerator* gg,
                                                    cmMakefile* mf)
@@ -22,20 +14,20 @@ cmLocalGhsMultiGenerator::cmLocalGhsMultiGenerator(cmGlobalGenerator* gg,
 {
 }
 
-cmLocalGhsMultiGenerator::~cmLocalGhsMultiGenerator() {}
+cmLocalGhsMultiGenerator::~cmLocalGhsMultiGenerator()
+{
+}
 
 void cmLocalGhsMultiGenerator::Generate()
 {
   std::vector<cmGeneratorTarget*> tgts = this->GetGeneratorTargets();
 
   for (std::vector<cmGeneratorTarget*>::iterator l = tgts.begin();
-       l != tgts.end(); ++l)
-    {
-    if ((*l)->GetType() == cmState::INTERFACE_LIBRARY)
-      {
+       l != tgts.end(); ++l) {
+    if ((*l)->GetType() == cmStateEnums::INTERFACE_LIBRARY) {
       continue;
-      }
+    }
     cmGhsMultiTargetGenerator tg(*l);
     tg.Generate();
-    }
+  }
 }

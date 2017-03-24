@@ -1,14 +1,5 @@
-#=============================================================================
-# KWSys - Kitware System Library
-# Copyright 2000-2011 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing#kwsys for details.
 
 # The Kitware System Library is intended to be included in other
 # projects.  It is completely configurable in that the library's
@@ -76,12 +67,15 @@
 # written.
 
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6.3 FATAL_ERROR)
-IF(POLICY CMP0025)
-  CMAKE_POLICY(SET CMP0025 NEW)
-ENDIF()
-IF(POLICY CMP0056)
-  CMAKE_POLICY(SET CMP0056 NEW)
-ENDIF()
+FOREACH(p
+    CMP0025 # CMake 3.0, Compiler id for Apple Clang is now AppleClang.
+    CMP0056 # CMake 3.2, Honor link flags in try_compile() source-file signature.
+    CMP0063 # CMake 3.3, Honor visibility properties for all target types.
+    )
+  IF(POLICY ${p})
+    CMAKE_POLICY(SET ${p} NEW)
+  ENDIF()
+ENDFOREACH()
 SET(CMAKE_LEGACY_CYGWIN_WIN32 0)
 
 #-----------------------------------------------------------------------------
@@ -118,13 +112,12 @@ IF(KWSYS_STANDALONE OR CMake_SOURCE_DIR)
   SET(KWSYS_USE_System 1)
   SET(KWSYS_USE_SystemTools 1)
   SET(KWSYS_USE_CommandLineArguments 1)
-  SET(KWSYS_USE_FundamentalType 1)
   SET(KWSYS_USE_Terminal 1)
   SET(KWSYS_USE_IOStream 1)
   SET(KWSYS_USE_FStream 1)
   SET(KWSYS_USE_String 1)
   SET(KWSYS_USE_SystemInformation 1)
-  SET(KWSYS_USE_CPU 1)
+  SET(KWSYS_USE_ConsoleBuf 1)
 ENDIF()
 
 # Enforce component dependencies.
@@ -154,6 +147,9 @@ IF(KWSYS_USE_Directory)
   SET(KWSYS_USE_Encoding 1)
 ENDIF()
 IF(KWSYS_USE_FStream)
+  SET(KWSYS_USE_Encoding 1)
+ENDIF()
+IF(KWSYS_USE_ConsoleBuf)
   SET(KWSYS_USE_Encoding 1)
 ENDIF()
 
@@ -375,68 +371,6 @@ IF(KWSYS_CXX_HAS___INT64)
   ENDIF()
 ENDIF()
 
-IF(KWSYS_USE_FundamentalType)
-  # Look for type size helper macros.
-  KWSYS_PLATFORM_INFO_TEST(C KWSYS_C_TYPE_MACROS
-    "Checking for C type size macros")
-  SET(macro_regex ".*INFO:macro\\[([^]]*)\\].*")
-  FOREACH(info ${KWSYS_C_TYPE_MACROS})
-    IF("${info}" MATCHES "${macro_regex}")
-      STRING(REGEX REPLACE "${macro_regex}" "\\1" macro "${info}")
-      SET(KWSYS_C_HAS_MACRO_${macro} 1)
-    ENDIF()
-  ENDFOREACH()
-
-  # Determine type sizes at preprocessing time if possible, and
-  # otherwise fall back to a try-compile.
-  SET(KWSYS_C_TYPE_NAME_CHAR      "char")
-  SET(KWSYS_C_TYPE_NAME_SHORT     "short")
-  SET(KWSYS_C_TYPE_NAME_INT       "int")
-  SET(KWSYS_C_TYPE_NAME_LONG      "long")
-  SET(KWSYS_C_TYPE_NAME_LONG_LONG "long long")
-  SET(KWSYS_C_TYPE_NAME___INT64   "__int64")
-  FOREACH(type CHAR SHORT INT LONG LONG_LONG __INT64)
-    IF(KWSYS_C_HAS_MACRO___SIZEOF_${type}__)
-      # Use __SIZEOF_${type}__ macro.
-      SET(KWSYS_SIZEOF_${type} TRUE)
-      SET(KWSYS_C_CODE_SIZEOF_${type} "#define ${KWSYS_NAMESPACE}_SIZEOF_${type} __SIZEOF_${type}__")
-    ELSEIF(KWSYS_C_HAS_MACRO___${type}_MAX__)
-      # Use __${type}_MAX__ macro.
-      SET(KWSYS_SIZEOF_${type} TRUE)
-      SET(KWSYS_C_CODE_SIZEOF_${type} "#if __${type}_MAX__ == 0x7f
-# define ${KWSYS_NAMESPACE}_SIZEOF_${type} 1
-#elif __${type}_MAX__ == 0x7fff
-# define ${KWSYS_NAMESPACE}_SIZEOF_${type} 2
-#elif __${type}_MAX__ == 0x7fffffff
-# define ${KWSYS_NAMESPACE}_SIZEOF_${type} 4
-#elif __${type}_MAX__>>32 == 0x7fffffff
-# define ${KWSYS_NAMESPACE}_SIZEOF_${type} 8
-#else
-# error \"Cannot determine sizeof(${KWSYS_C_TYPE_NAME_${type}}).\"
-#endif")
-    ELSE()
-      # Configure a hard-coded type size.
-      CHECK_TYPE_SIZE("${KWSYS_C_TYPE_NAME_${type}}" KWSYS_SIZEOF_${type})
-      IF(NOT KWSYS_SIZEOF_${type})
-        SET(KWSYS_SIZEOF_${type} 0)
-      ENDIF()
-      SET(KWSYS_C_CODE_SIZEOF_${type}
-        "#define ${KWSYS_NAMESPACE}_SIZEOF_${type} ${KWSYS_SIZEOF_${type}}")
-    ENDIF()
-  ENDFOREACH()
-
-  IF(KWSYS_USE___INT64)
-    KWSYS_PLATFORM_CXX_TEST(KWSYS_CAN_CONVERT_UI64_TO_DOUBLE
-      "Checking whether unsigned __int64 can convert to double" DIRECT)
-  ELSE()
-    SET(KWSYS_CAN_CONVERT_UI64_TO_DOUBLE 1)
-  ENDIF()
-
-  # Check signedness of "char" type.
-  KWSYS_PLATFORM_CXX_TEST_RUN(KWSYS_CHAR_IS_SIGNED
-    "Checking whether char is signed" DIRECT)
-ENDIF()
-
 IF(KWSYS_USE_Encoding)
   # Look for type size helper macros.
   KWSYS_PLATFORM_CXX_TEST(KWSYS_STL_HAS_WSTRING
@@ -494,6 +428,17 @@ KWSYS_PLATFORM_C_TEST(KWSYS_C_HAS_SSIZE_T
 SET_SOURCE_FILES_PROPERTIES(ProcessUNIX.c System.c PROPERTIES
   COMPILE_FLAGS "-DKWSYS_C_HAS_PTRDIFF_T=${KWSYS_C_HAS_PTRDIFF_T} -DKWSYS_C_HAS_SSIZE_T=${KWSYS_C_HAS_SSIZE_T}"
   )
+
+IF(KWSYS_USE_DynamicLoader)
+  GET_PROPERTY(KWSYS_SUPPORTS_SHARED_LIBS GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS)
+  IF(KWSYS_SUPPORTS_SHARED_LIBS)
+    SET(KWSYS_SUPPORTS_SHARED_LIBS 1)
+  ELSE()
+    SET(KWSYS_SUPPORTS_SHARED_LIBS 0)
+  ENDIF()
+  SET_PROPERTY(SOURCE DynamicLoader.cxx APPEND PROPERTY COMPILE_DEFINITIONS
+    KWSYS_SUPPORTS_SHARED_LIBS=${KWSYS_SUPPORTS_SHARED_LIBS})
+ENDIF()
 
 IF(KWSYS_USE_SystemTools)
   KWSYS_PLATFORM_CXX_TEST(KWSYS_CXX_HAS_SETENV
@@ -696,6 +641,11 @@ IF(KWSYS_USE_SystemInformation)
   ENDIF()
 ENDIF()
 
+IF(KWSYS_USE_FStream)
+  KWSYS_PLATFORM_CXX_TEST(KWSYS_CXX_HAS_EXT_STDIO_FILEBUF_H
+    "Checking whether <ext/stdio_filebuf.h> is available" DIRECT)
+ENDIF()
+
 #-----------------------------------------------------------------------------
 # Choose a directory for the generated headers.
 IF(NOT KWSYS_HEADER_ROOT)
@@ -727,13 +677,12 @@ SET(KWSYS_CLASSES)
 SET(KWSYS_H_FILES Configure SharedForward)
 SET(KWSYS_HXX_FILES Configure String
   hashtable hash_fun hash_map hash_set
-  auto_ptr
   )
 
 # Add selected C++ classes.
 SET(cppclasses
   Directory DynamicLoader Encoding Glob RegularExpression SystemTools
-  CommandLineArguments IOStream FStream SystemInformation
+  CommandLineArguments IOStream FStream SystemInformation ConsoleBuf
   )
 FOREACH(cpp ${cppclasses})
   IF(KWSYS_USE_${cpp})
@@ -749,7 +698,7 @@ ENDFOREACH()
 
 # Add selected C components.
 FOREACH(c
-    Process Base64 Encoding FundamentalType MD5 Terminal System String CPU
+    Process Base64 Encoding MD5 Terminal System String
     )
   IF(KWSYS_USE_${c})
     # Use the corresponding header file.
@@ -869,6 +818,9 @@ IF(KWSYS_C_SRCS OR KWSYS_CXX_SRCS)
         # for symbol lookup using dladdr
         TARGET_LINK_LIBRARIES(${KWSYS_NAMESPACE} ${CMAKE_DL_LIBS})
       ENDIF()
+      IF (CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+        TARGET_LINK_LIBRARIES(${KWSYS_NAMESPACE} socket)
+      ENDIF()
     ENDIF()
   ENDIF()
 
@@ -930,7 +882,7 @@ ENDIF()
 
 IF(KWSYS_USE_Encoding)
   # Set default 8 bit encoding in "EndcodingC.c".
-  SET_PROPERTY(SOURCE EncodingC.c APPEND PROPERTY COMPILE_DEFINITIONS
+  SET_PROPERTY(SOURCE EncodingC.c EncodingCXX.cxx APPEND PROPERTY COMPILE_DEFINITIONS
     KWSYS_ENCODING_DEFAULT_CODEPAGE=${KWSYS_ENCODING_DEFAULT_CODEPAGE})
 ENDIF()
 
@@ -967,7 +919,6 @@ IF(KWSYS_STANDALONE OR CMake_SOURCE_DIR)
     # C++ tests
     IF(NOT WATCOM)
       SET(KWSYS_CXX_TESTS
-        testAutoPtr
         testHashSTL
         )
     ENDIF()
@@ -986,6 +937,20 @@ IF(KWSYS_STANDALONE OR CMake_SOURCE_DIR)
       SET(KWSYS_CXX_TESTS ${KWSYS_CXX_TESTS}
         testFStream
         )
+    ENDIF()
+    IF(KWSYS_USE_ConsoleBuf)
+      ADD_EXECUTABLE(testConsoleBufChild testConsoleBufChild.cxx)
+      SET_PROPERTY(TARGET testConsoleBufChild PROPERTY LABELS ${KWSYS_LABELS_EXE})
+      TARGET_LINK_LIBRARIES(testConsoleBufChild ${KWSYS_NAMESPACE})
+      SET(KWSYS_CXX_TESTS ${KWSYS_CXX_TESTS}
+        testConsoleBuf
+        )
+      IF("x${CMAKE_CXX_COMPILER_ID}" STREQUAL "xMSVC" AND
+         CMAKE_CXX_COMPILER_VERSION VERSION_GREATER "19.0.23506")
+        set_property(SOURCE testConsoleBuf.cxx testConsoleBufChild.cxx PROPERTY COMPILE_FLAGS /utf-8)
+      ENDIF()
+      SET_PROPERTY(SOURCE testConsoleBuf.cxx APPEND PROPERTY COMPILE_DEFINITIONS
+        KWSYS_ENCODING_DEFAULT_CODEPAGE=${KWSYS_ENCODING_DEFAULT_CODEPAGE})
     ENDIF()
     IF(KWSYS_USE_SystemInformation)
       SET(KWSYS_CXX_TESTS ${KWSYS_CXX_TESTS} testSystemInformation)

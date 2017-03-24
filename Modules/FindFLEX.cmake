@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindFLEX
 # --------
@@ -93,20 +96,6 @@
 #    )
 #   ====================================================================
 
-#=============================================================================
-# Copyright 2009 Kitware, Inc.
-# Copyright 2006 Tristan Carel
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
 find_program(FLEX_EXECUTABLE NAMES flex win_flex DOC "path to the flex executable")
 mark_as_advanced(FLEX_EXECUTABLE)
 
@@ -117,8 +106,6 @@ find_path(FLEX_INCLUDE_DIR FlexLexer.h
   DOC "Path to the flex headers")
 
 mark_as_advanced(FL_LIBRARY FLEX_INCLUDE_DIR)
-
-include(${CMAKE_CURRENT_LIST_DIR}/CMakeParseArguments.cmake)
 
 set(FLEX_INCLUDE_DIRS ${FLEX_INCLUDE_DIR})
 set(FLEX_LIBRARIES ${FL_LIBRARY})
@@ -185,8 +172,8 @@ if(FLEX_EXECUTABLE)
       endif()
 
       add_custom_command(OUTPUT ${FLEX_TARGET_outputs}
-        COMMAND ${FLEX_EXECUTABLE}
-        ARGS ${FLEX_EXECUTABLE_opts} -o${Output} ${Input}
+        COMMAND ${FLEX_EXECUTABLE} ${FLEX_EXECUTABLE_opts} -o${Output} ${Input}
+        VERBATIM
         DEPENDS ${Input}
         COMMENT "[FLEX][${Name}] Building scanner with flex ${FLEX_VERSION}"
         WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR})
@@ -229,5 +216,3 @@ endif()
 include(${CMAKE_CURRENT_LIST_DIR}/FindPackageHandleStandardArgs.cmake)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(FLEX REQUIRED_VARS FLEX_EXECUTABLE
                                        VERSION_VAR FLEX_VERSION)
-
-# FindFLEX.cmake ends here

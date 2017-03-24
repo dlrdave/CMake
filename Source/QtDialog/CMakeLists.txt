@@ -1,14 +1,5 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
 project(QtDialog)
 if(POLICY CMP0020)
@@ -35,6 +26,12 @@ if (Qt5Widgets_FOUND)
   add_definitions(-DQT_DISABLE_DEPRECATED_BEFORE=0)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${Qt5Widgets_EXECUTABLE_COMPILE_FLAGS}")
+
+  if(CMake_QT_STATIC_QXcbIntegrationPlugin_LIBRARIES)
+    list(APPEND CMake_QT_LIBRARIES ${CMake_QT_STATIC_QXcbIntegrationPlugin_LIBRARIES})
+    set_property(SOURCE CMakeSetup.cxx
+      PROPERTY COMPILE_DEFINITIONS USE_QXcbIntegrationPlugin)
+  endif()
 
   # We need to install platform plugin and add qt.conf for Qt5 on Mac and Windows.
   # FIXME: This should be part of Qt5 CMake scripts, but unfortunatelly
@@ -115,6 +112,8 @@ set(SRCS
   QCMakeWidgets.h
   RegexExplorer.cxx
   RegexExplorer.h
+  WarningMessagesDialog.cxx
+  WarningMessagesDialog.h
   )
 QT4_WRAP_UI(UI_SRCS
   CMakeSetupDialog.ui
@@ -122,6 +121,7 @@ QT4_WRAP_UI(UI_SRCS
   CrossCompiler.ui
   AddCacheEntry.ui
   RegexExplorer.ui
+  WarningMessagesDialog.ui
   )
 QT4_WRAP_CPP(MOC_SRCS
   AddCacheEntry.h
@@ -132,6 +132,7 @@ QT4_WRAP_CPP(MOC_SRCS
   QCMakeCacheView.h
   QCMakeWidgets.h
   RegexExplorer.h
+  WarningMessagesDialog.h
   )
 QT4_ADD_RESOURCES(RC_SRCS CMakeSetup.qrc)
 
@@ -146,12 +147,12 @@ if(APPLE)
     MACOSX_PACKAGE_LOCATION Resources)
 endif()
 
-if(CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL)
-  install(FILES ${CMake_SOURCE_DIR}/Licenses/LGPLv2.1.txt
+if(USE_LGPL)
+  install(FILES ${CMake_SOURCE_DIR}/Licenses/LGPLv${USE_LGPL}.txt
     DESTINATION ${CMAKE_DATA_DIR}/Licenses
     ${COMPONENT})
   set_property(SOURCE CMakeSetupDialog.cxx
-    PROPERTY COMPILE_DEFINITIONS CMake_GUI_DISTRIBUTE_WITH_Qt_LGPL)
+    PROPERTY COMPILE_DEFINITIONS USE_LGPL="${USE_LGPL}")
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -169,6 +170,7 @@ if(APPLE)
     MACOSX_BUNDLE_SHORT_VERSION_STRING "${CMAKE_BUNDLE_VERSION}"
     # TBD: MACOSX_BUNDLE_BUNDLE_VERSION "${CMAKE_BUNDLE_VERSION}"
     MACOSX_BUNDLE_COPYRIGHT "${copyright_line}"
+    MACOSX_BUNDLE_GUI_IDENTIFIER "org.cmake.cmake"
     )
 
   # Create a symlink in the build tree to provide a "cmake-gui" next
@@ -189,7 +191,7 @@ if(UNIX AND NOT APPLE)
   foreach (size IN ITEMS 32 128)
     install(
       FILES       "${CMAKE_CURRENT_SOURCE_DIR}/CMakeSetup${size}.png"
-      DESTINATION "share/icons/hicolor/${size}x${size}/apps"
+      DESTINATION "${CMAKE_XDGDATA_DIR}/icons/hicolor/${size}x${size}/apps"
       ${COMPONENT}
       RENAME      "CMakeSetup.png")
   endforeach ()
@@ -197,10 +199,10 @@ if(UNIX AND NOT APPLE)
   # install a desktop file so CMake appears in the application start menu
   # with an icon
   install(FILES CMake.desktop
-    DESTINATION share/applications
+    DESTINATION "${CMAKE_XDGDATA_DIR}/applications"
     ${COMPONENT})
   install(FILES cmakecache.xml
-    DESTINATION share/mime/packages
+    DESTINATION "${CMAKE_XDGDATA_DIR}/mime/packages"
     ${COMPONENT})
 endif()
 

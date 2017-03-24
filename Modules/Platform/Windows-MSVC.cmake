@@ -1,16 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2001-2012 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # This module is shared by multiple languages; use include blocker.
 if(__WINDOWS_MSVC)
@@ -47,10 +37,6 @@ else()
 endif()
 
 set(CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS 1)
-if(CMAKE_GENERATOR MATCHES "Visual Studio 6")
-   set (CMAKE_NO_BUILD_TYPE 1)
-   set(CMAKE_SUPPORT_WINDOWS_EXPORT_ALL_SYMBOLS 0) # not implemented for VS6
-endif()
 if(NOT CMAKE_NO_BUILD_TYPE AND CMAKE_GENERATOR MATCHES "Visual Studio")
   set (CMAKE_NO_BUILD_TYPE 1)
 endif()
@@ -68,6 +54,8 @@ if(NOT MSVC_VERSION)
     set(_compiler_version ${CMAKE_CXX_SIMULATE_VERSION})
   elseif(CMAKE_Fortran_SIMULATE_VERSION)
     set(_compiler_version ${CMAKE_Fortran_SIMULATE_VERSION})
+  elseif(CMAKE_CUDA_SIMULATE_VERSION)
+    set(_compiler_version ${CMAKE_CUDA_SIMULATE_VERSION})
   elseif(CMAKE_C_COMPILER_VERSION)
     set(_compiler_version ${CMAKE_C_COMPILER_VERSION})
   else()
@@ -90,7 +78,9 @@ if(NOT MSVC_VERSION)
   set(MSVC90)
   set(CMAKE_COMPILER_2005)
   set(CMAKE_COMPILER_SUPPORTS_PDBTYPE)
-  if(NOT "${_compiler_version}" VERSION_LESS 19)
+  if(NOT "${_compiler_version}" VERSION_LESS 20)
+    # We no longer provide per-version variables.  Use MSVC_VERSION instead.
+  elseif(NOT "${_compiler_version}" VERSION_LESS 19)
     set(MSVC14 1)
   elseif(NOT "${_compiler_version}" VERSION_LESS 18)
     set(MSVC12 1)
@@ -170,10 +160,12 @@ if(WINCE)
   endforeach()
 
   set(CMAKE_C_STANDARD_LIBRARIES_INIT "coredll.lib ole32.lib oleaut32.lib uuid.lib commctrl.lib")
-  set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} /NODEFAULTLIB:libc.lib /NODEFAULTLIB:oldnames.lib")
+  foreach(t EXE SHARED MODULE)
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_INIT " /NODEFAULTLIB:libc.lib /NODEFAULTLIB:oldnames.lib")
+  endforeach()
 
   if (MSVC_VERSION LESS 1600)
-    set(CMAKE_C_STANDARD_LIBRARIES_INIT "${CMAKE_C_STANDARD_LIBRARIES_INIT} corelibc.lib")
+    string(APPEND CMAKE_C_STANDARD_LIBRARIES_INIT " corelibc.lib")
   endif ()
 elseif(WINDOWS_PHONE OR WINDOWS_STORE)
   set(_PLATFORM_DEFINES "/DWIN32")
@@ -194,8 +186,14 @@ else()
   if(_MSVC_C_ARCHITECTURE_FAMILY STREQUAL "ARM" OR _MSVC_CXX_ARCHITECTURE_FAMILY STREQUAL "ARM")
     set(CMAKE_C_STANDARD_LIBRARIES_INIT "kernel32.lib user32.lib")
   elseif(MSVC_VERSION GREATER 1310)
-    set(_RTC1 "/RTC1")
-    set(_FLAGS_CXX " /GR /EHsc")
+    if(CMAKE_VS_PLATFORM_TOOLSET MATCHES "(v[0-9]+_clang_.*|LLVM-vs[0-9]+.*)")
+      # Clang/C2 in MSVC14 Update 1 seems to not support -fsantinize (yet?)
+      # set(_RTC1 "-fsantinize=memory,safe-stack")
+      set(_FLAGS_CXX " -frtti -fexceptions")
+    else()
+      set(_RTC1 "/RTC1")
+      set(_FLAGS_CXX " /GR /EHsc")
+    endif()
     set(CMAKE_C_STANDARD_LIBRARIES_INIT "kernel32.lib user32.lib gdi32.lib winspool.lib shell32.lib ole32.lib oleaut32.lib uuid.lib comdlg32.lib advapi32.lib")
   else()
     set(_RTC1 "/GZ")
@@ -233,9 +231,6 @@ elseif(MSVC_CXX_ARCHITECTURE_ID)
 elseif(MSVC_Fortran_ARCHITECTURE_ID)
   set(_MACHINE_ARCH_FLAG "/machine:${MSVC_Fortran_ARCHITECTURE_ID}")
 endif()
-set(CMAKE_EXE_LINKER_FLAGS_INIT "${CMAKE_EXE_LINKER_FLAGS_INIT} ${_MACHINE_ARCH_FLAG}")
-set(CMAKE_STATIC_LINKER_FLAGS_INIT "${CMAKE_STATIC_LINKER_FLAGS_INIT} ${_MACHINE_ARCH_FLAG}")
-unset(_MACHINE_ARCH_FLAG)
 
 # add /debug and /INCREMENTAL:YES to DEBUG and RELWITHDEBINFO also add pdbtype
 # on versions that support it
@@ -248,30 +243,22 @@ if(NOT WINDOWS_PHONE AND NOT WINDOWS_STORE)
   endif()
 endif()
 
-if (CMAKE_COMPILER_SUPPORTS_PDBTYPE)
-  set (CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT "/debug /pdbtype:sept ${MSVC_INCREMENTAL_YES_FLAG}")
-  set (CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "/debug /pdbtype:sept ${MSVC_INCREMENTAL_YES_FLAG}")
-else ()
-  set (CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT "/debug ${MSVC_INCREMENTAL_YES_FLAG}")
-  set (CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT "/debug ${MSVC_INCREMENTAL_YES_FLAG}")
-endif ()
-# for release and minsize release default to no incremental linking
-set(CMAKE_EXE_LINKER_FLAGS_MINSIZEREL_INIT "/INCREMENTAL:NO")
-set(CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT "/INCREMENTAL:NO")
+foreach(t EXE SHARED MODULE)
+  string(APPEND CMAKE_${t}_LINKER_FLAGS_INIT " ${_MACHINE_ARCH_FLAG}")
+  if (CMAKE_COMPILER_SUPPORTS_PDBTYPE)
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_DEBUG_INIT " /debug /pdbtype:sept ${MSVC_INCREMENTAL_YES_FLAG}")
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_RELWITHDEBINFO_INIT " /debug /pdbtype:sept ${MSVC_INCREMENTAL_YES_FLAG}")
+  else ()
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_DEBUG_INIT " /debug ${MSVC_INCREMENTAL_YES_FLAG}")
+    string(APPEND CMAKE_${t}_LINKER_FLAGS_RELWITHDEBINFO_INIT " /debug ${MSVC_INCREMENTAL_YES_FLAG}")
+  endif ()
+  # for release and minsize release default to no incremental linking
+  string(APPEND CMAKE_${t}_LINKER_FLAGS_MINSIZEREL_INIT " /INCREMENTAL:NO")
+  string(APPEND CMAKE_${t}_LINKER_FLAGS_RELEASE_INIT " /INCREMENTAL:NO")
+endforeach()
 
-# copy the EXE_LINKER flags to SHARED and MODULE linker flags
-# shared linker flags
-set (CMAKE_SHARED_LINKER_FLAGS_INIT ${CMAKE_EXE_LINKER_FLAGS_INIT})
-set (CMAKE_SHARED_LINKER_FLAGS_DEBUG_INIT ${CMAKE_EXE_LINKER_FLAGS_DEBUG_INIT})
-set (CMAKE_SHARED_LINKER_FLAGS_RELWITHDEBINFO_INIT ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT})
-set (CMAKE_SHARED_LINKER_FLAGS_RELEASE_INIT ${CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT})
-set (CMAKE_SHARED_LINKER_FLAGS_MINSIZEREL_INIT ${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL_INIT})
-# module linker flags
-set (CMAKE_MODULE_LINKER_FLAGS_INIT ${CMAKE_SHARED_LINKER_FLAGS_INIT})
-set (CMAKE_MODULE_LINKER_FLAGS_DEBUG_INIT ${CMAKE_SHARED_LINKER_FLAGS_DEBUG_INIT})
-set (CMAKE_MODULE_LINKER_FLAGS_RELWITHDEBINFO_INIT ${CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO_INIT})
-set (CMAKE_MODULE_LINKER_FLAGS_RELEASE_INIT ${CMAKE_EXE_LINKER_FLAGS_RELEASE_INIT})
-set (CMAKE_MODULE_LINKER_FLAGS_MINSIZEREL_INIT ${CMAKE_EXE_LINKER_FLAGS_MINSIZEREL_INIT})
+string(APPEND CMAKE_STATIC_LINKER_FLAGS_INIT " ${_MACHINE_ARCH_FLAG}")
+unset(_MACHINE_ARCH_FLAG)
 
 macro(__windows_compiler_msvc lang)
   if(NOT MSVC_VERSION LESS 1400)
@@ -296,11 +283,24 @@ macro(__windows_compiler_msvc lang)
   set(CMAKE_${lang}_LINK_EXECUTABLE
     "${_CMAKE_VS_LINK_EXE}<CMAKE_LINKER> ${CMAKE_CL_NOLOGO} <OBJECTS> ${CMAKE_START_TEMP_FILE} /out:<TARGET> /implib:<TARGET_IMPLIB> /pdb:<TARGET_PDB> /version:<TARGET_VERSION_MAJOR>.<TARGET_VERSION_MINOR>${_PLATFORM_LINK_FLAGS} <CMAKE_${lang}_LINK_FLAGS> <LINK_FLAGS> <LINK_LIBRARIES>${CMAKE_END_TEMP_FILE}")
 
-  set(CMAKE_${lang}_FLAGS_INIT "${_PLATFORM_DEFINES}${_PLATFORM_DEFINES_${lang}} /D_WINDOWS /W3${_FLAGS_${lang}}")
-  set(CMAKE_${lang}_FLAGS_DEBUG_INIT "/D_DEBUG /MDd /Zi /Ob0 /Od ${_RTC1}")
-  set(CMAKE_${lang}_FLAGS_RELEASE_INIT "/MD /O2 /Ob2 /D NDEBUG")
-  set(CMAKE_${lang}_FLAGS_RELWITHDEBINFO_INIT "/MD /Zi /O2 /Ob1 /D NDEBUG")
-  set(CMAKE_${lang}_FLAGS_MINSIZEREL_INIT "/MD /O1 /Ob1 /D NDEBUG")
+  if("x${lang}" STREQUAL "xC" OR
+      "x${lang}" STREQUAL "xCXX")
+    if(CMAKE_VS_PLATFORM_TOOLSET MATCHES "(v[0-9]+_clang_.*|LLVM-vs[0-9]+.*)")
+      # note: MSVC 14 2015 Update 1 sets -fno-ms-compatibility by default, but this does not allow one to compile many projects
+      # that include MS's own headers. CMake itself is affected project too.
+      string(APPEND CMAKE_${lang}_FLAGS_INIT " ${_PLATFORM_DEFINES}${_PLATFORM_DEFINES_${lang}} -fms-extensions -fms-compatibility -D_WINDOWS -Wall${_FLAGS_${lang}}")
+      string(APPEND CMAKE_${lang}_FLAGS_DEBUG_INIT " /MDd -gline-tables-only -fno-inline -O0 ${_RTC1}")
+      string(APPEND CMAKE_${lang}_FLAGS_RELEASE_INIT " /MD -O2 -DNDEBUG")
+      string(APPEND CMAKE_${lang}_FLAGS_RELWITHDEBINFO_INIT " /MD -gline-tables-only -O2 -fno-inline -DNDEBUG")
+      string(APPEND CMAKE_${lang}_FLAGS_MINSIZEREL_INIT " /MD -DNDEBUG") # TODO: Add '-Os' once VS generator maps it properly for Clang
+    else()
+      string(APPEND CMAKE_${lang}_FLAGS_INIT " ${_PLATFORM_DEFINES}${_PLATFORM_DEFINES_${lang}} /D_WINDOWS /W3${_FLAGS_${lang}}")
+      string(APPEND CMAKE_${lang}_FLAGS_DEBUG_INIT " /MDd /Zi /Ob0 /Od ${_RTC1}")
+      string(APPEND CMAKE_${lang}_FLAGS_RELEASE_INIT " /MD /O2 /Ob2 /DNDEBUG")
+      string(APPEND CMAKE_${lang}_FLAGS_RELWITHDEBINFO_INIT " /MD /Zi /O2 /Ob1 /DNDEBUG")
+      string(APPEND CMAKE_${lang}_FLAGS_MINSIZEREL_INIT " /MD /O1 /Ob1 /DNDEBUG")
+    endif()
+  endif()
   set(CMAKE_${lang}_LINKER_SUPPORTS_PDB ON)
   set(CMAKE_NINJA_DEPTYPE_${lang} msvc)
 
@@ -308,7 +308,7 @@ macro(__windows_compiler_msvc lang)
     set(CMAKE_RC_COMPILER_INIT rc)
   endif()
   if(NOT CMAKE_RC_FLAGS_INIT)
-    set(CMAKE_RC_FLAGS_INIT "${_PLATFORM_DEFINES} ${_PLATFORM_DEFINES_${lang}}")
+    string(APPEND CMAKE_RC_FLAGS_INIT " ${_PLATFORM_DEFINES} ${_PLATFORM_DEFINES_${lang}}")
   endif()
 
   enable_language(RC)

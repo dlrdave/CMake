@@ -1,21 +1,11 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2015 Geoffrey Viola <geoffrey.viola@asirobots.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 #Setup Greenhills MULTI specific compilation information
 
 if (NOT GHS_INT_DIRECTORY)
-  #Assume the C:/ghs/int#### directory that is latest is prefered
+  #Assume the C:/ghs/int#### directory that is latest is preferred
   set(GHS_EXPECTED_ROOT "C:/ghs")
   if (EXISTS ${GHS_EXPECTED_ROOT})
     FILE(GLOB GHS_CANDIDATE_INT_DIRS RELATIVE

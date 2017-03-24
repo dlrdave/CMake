@@ -92,6 +92,9 @@ if("${CPACK_GENERATOR}" MATCHES "RPM")
   # test symbolic link to location outside package
   execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink ./outside_package symlink_outside_package)
   install(FILES ${CMAKE_CURRENT_BINARY_DIR}/symlink_outside_package DESTINATION ${CMAKE_INSTALL_LIBDIR}/inside_relocatable_one/depth_two COMPONENT libraries)
+  # test symbolic link to location outside wdr (packaging directory)
+  execute_process(COMMAND ${CMAKE_COMMAND} -E create_symlink /outside_package_wdr symlink_outside_wdr)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/symlink_outside_wdr DESTINATION ${CMAKE_INSTALL_LIBDIR}/inside_relocatable_one/depth_two COMPONENT libraries)
 endif()
 
 # CPack boilerplate for this project
@@ -161,6 +164,9 @@ set(CPACK_COMPONENT_APPLICATIONS_INSTALL_TYPES Full)
 set(CPACK_RPM_RELOCATION_PATHS "${CMAKE_INSTALL_INCLUDEDIR}"
   "${CMAKE_INSTALL_LIBDIR}" "${CMAKE_INSTALL_BINDIR}" "other_relocatable"
   "${CMAKE_INSTALL_LIBDIR}/inside_relocatable_two/depth_two/different_relocatable")
+
+# set CPACK_DEBIAN_FILE_NAME to use default package name format
+set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
 
 # We may use the CPack specific config file in order
 # to tailor CPack behavior on a CPack generator specific way

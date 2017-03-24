@@ -1,5 +1,5 @@
 
-template<typename T>
+template <typename T>
 struct A
 {
   typedef T Result;
@@ -7,6 +7,8 @@ struct A
 
 void someFunc()
 {
+  /* clang-format off */
   A<A<int>> object;
+  /* clang-format on */
   (void)object;
 }

@@ -1,22 +1,14 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2004-2011 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # This file sets the basic flags for the C++ language in CMake.
 # It also loads the available platform file for the system-compiler
 # if it exists.
 # It also loads a system - compiler - processor (or target hardware)
 # specific file, which is mainly useful for crosscompiling and embedded systems.
+
+include(CMakeLanguageInformation)
 
 # some compilers use different extensions (e.g. sdcc uses .rel)
 # so set the extension here first so it can be overridden by the compiler specific file
@@ -59,6 +51,12 @@ if (NOT _INCLUDED_FILE)
   include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_BASE_NAME} OPTIONAL
           RESULT_VARIABLE _INCLUDED_FILE)
 endif ()
+
+# load any compiler-wrapper specific information
+if (CMAKE_CXX_COMPILER_WRAPPER)
+  __cmake_include_compiler_wrapper(CXX)
+endif ()
+
 # We specify the compiler information in the system file for some
 # platforms, but this language may not have been enabled when the file
 # was first included.  Include it again to get the language info.
@@ -198,10 +196,11 @@ endforeach()
 # use _INIT variables so that this only happens the first time
 # and you can set these flags in the cmake cache
 set(CMAKE_CXX_FLAGS_INIT "$ENV{CXXFLAGS} ${CMAKE_CXX_FLAGS_INIT}")
-# avoid just having a space as the initial value for the cache
-if(CMAKE_CXX_FLAGS_INIT STREQUAL " ")
-  set(CMAKE_CXX_FLAGS_INIT)
-endif()
+
+foreach(c "" _DEBUG _RELEASE _MINSIZEREL _RELWITHDEBINFO)
+  string(STRIP "${CMAKE_CXX_FLAGS${c}_INIT}" CMAKE_CXX_FLAGS${c}_INIT)
+endforeach()
+
 set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT}" CACHE STRING
      "Flags used by the compiler during all build types.")
 

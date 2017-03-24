@@ -1,16 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2004-2009 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # determine the compiler to use for Fortran programs
 # NOTE, a generator may set CMAKE_Fortran_COMPILER before
@@ -20,6 +10,7 @@
 # as a default compiler
 
 include(${CMAKE_ROOT}/Modules/CMakeDetermineCompiler.cmake)
+include(Platform/${CMAKE_SYSTEM_NAME}-Determine-Fortran OPTIONAL)
 include(Platform/${CMAKE_SYSTEM_NAME}-Fortran OPTIONAL)
 if(NOT CMAKE_Fortran_COMPILER_NAMES)
   set(CMAKE_Fortran_COMPILER_NAMES f95)
@@ -54,6 +45,7 @@ else()
     if(NOT CMAKE_Fortran_COMPILER_INIT)
       # Known compilers:
       #  f77/f90/f95: generic compiler names
+      #  ftn: Cray fortran compiler wrapper
       #  g77: GNU Fortran 77 compiler
       #  gfortran: putative GNU Fortran 95+ compiler (in progress)
       #  fort77: native F77 compiler under HP-UX (and some older Crays)
@@ -73,6 +65,7 @@ else()
       #  then 77 or older compilers, gnu is always last in the group,
       #  so if you paid for a compiler it is picked by default.
       set(CMAKE_Fortran_COMPILER_LIST
+        ftn
         ifort ifc af95 af90 efc f95 pathf2003 pathf95 pgf95 pgfortran lf95 xlf95
         fort gfortran gfortran-4 g95 f90 pathf90 pgf90 xlf90 epcf90 fort77
         frt pgf77 xlf fl32 af77 g77 f77
@@ -138,10 +131,10 @@ if(NOT CMAKE_Fortran_COMPILER_ID_RUN)
   set(_version_info "")
   foreach(m MAJOR MINOR PATCH TWEAK)
     set(_COMP "_${m}")
-    set(_version_info "${_version_info}
+    string(APPEND _version_info "
 #if defined(COMPILER_VERSION${_COMP})")
     foreach(d 1 2 3 4 5 6 7 8)
-      set(_version_info "${_version_info}
+      string(APPEND _version_info "
 # undef DEC
 # undef HEX
 # define DEC(n) DEC_${d}(n)
@@ -169,7 +162,7 @@ if(NOT CMAKE_Fortran_COMPILER_ID_RUN)
 # endif
 ")
     endforeach()
-    set(_version_info "${_version_info}
+    string(APPEND _version_info "
 #endif")
   endforeach()
   set(CMAKE_Fortran_COMPILER_ID_VERSION_INFO "${_version_info}")
@@ -183,11 +176,10 @@ if(NOT CMAKE_Fortran_COMPILER_ID_RUN)
 
   # Fall back to old is-GNU test.
   if(NOT CMAKE_Fortran_COMPILER_ID)
-    exec_program(${CMAKE_Fortran_COMPILER}
-      ARGS ${CMAKE_Fortran_COMPILER_ID_FLAGS_LIST} -E "\"${CMAKE_ROOT}/Modules/CMakeTestGNU.c\""
-      OUTPUT_VARIABLE CMAKE_COMPILER_OUTPUT RETURN_VALUE CMAKE_COMPILER_RETURN)
+    execute_process(COMMAND ${CMAKE_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID_FLAGS_LIST} -E "${CMAKE_ROOT}/Modules/CMakeTestGNU.c"
+      OUTPUT_VARIABLE CMAKE_COMPILER_OUTPUT RESULT_VARIABLE CMAKE_COMPILER_RETURN)
     if(NOT CMAKE_COMPILER_RETURN)
-      if("${CMAKE_COMPILER_OUTPUT}" MATCHES "THIS_IS_GNU")
+      if(CMAKE_COMPILER_OUTPUT MATCHES "THIS_IS_GNU")
         set(CMAKE_Fortran_COMPILER_ID "GNU")
         file(APPEND ${CMAKE_BINARY_DIR}${CMAKE_FILES_DIRECTORY}/CMakeOutput.log
           "Determining if the Fortran compiler is GNU succeeded with "
@@ -198,12 +190,27 @@ if(NOT CMAKE_Fortran_COMPILER_ID_RUN)
           "the following output:\n${CMAKE_COMPILER_OUTPUT}\n\n")
       endif()
       if(NOT CMAKE_Fortran_PLATFORM_ID)
-        if("${CMAKE_COMPILER_OUTPUT}" MATCHES "THIS_IS_MINGW")
+        if(CMAKE_COMPILER_OUTPUT MATCHES "THIS_IS_MINGW")
           set(CMAKE_Fortran_PLATFORM_ID "MinGW")
         endif()
-        if("${CMAKE_COMPILER_OUTPUT}" MATCHES "THIS_IS_CYGWIN")
+        if(CMAKE_COMPILER_OUTPUT MATCHES "THIS_IS_CYGWIN")
           set(CMAKE_Fortran_PLATFORM_ID "Cygwin")
         endif()
+      endif()
+    endif()
+  endif()
+
+  # Fall back for GNU MINGW, which is not always detected correctly
+  # (__MINGW32__ is defined for the C language, but perhaps not for Fortran!)
+  if(CMAKE_Fortran_COMPILER_ID MATCHES "GNU" AND NOT CMAKE_Fortran_PLATFORM_ID)
+    execute_process(COMMAND ${CMAKE_Fortran_COMPILER} ${CMAKE_Fortran_COMPILER_ID_FLAGS_LIST} -E "${CMAKE_ROOT}/Modules/CMakeTestGNU.c"
+      OUTPUT_VARIABLE CMAKE_COMPILER_OUTPUT RESULT_VARIABLE CMAKE_COMPILER_RETURN)
+    if(NOT CMAKE_COMPILER_RETURN)
+      if(CMAKE_COMPILER_OUTPUT MATCHES "THIS_IS_MINGW")
+        set(CMAKE_Fortran_PLATFORM_ID "MinGW")
+      endif()
+      if(CMAKE_COMPILER_OUTPUT MATCHES "THIS_IS_CYGWIN")
+        set(CMAKE_Fortran_PLATFORM_ID "Cygwin")
       endif()
     endif()
   endif()
@@ -248,6 +255,9 @@ if (CMAKE_CROSSCOMPILING  AND NOT _CMAKE_TOOLCHAIN_PREFIX)
 endif ()
 
 include(CMakeFindBinUtils)
+set(_CMAKE_PROCESSING_LANGUAGE "Fortran")
+include(Compiler/${CMAKE_Fortran_COMPILER_ID}-FindBinUtils OPTIONAL)
+unset(_CMAKE_PROCESSING_LANGUAGE)
 
 if(MSVC_Fortran_ARCHITECTURE_ID)
   set(SET_MSVC_Fortran_ARCHITECTURE_ID

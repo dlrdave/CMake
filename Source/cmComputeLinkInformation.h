@@ -1,26 +1,21 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmComputeLinkInformation_h
 #define cmComputeLinkInformation_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
 #include <cmsys/RegularExpression.hxx>
+#include <iosfwd>
+#include <set>
+#include <string>
+#include <vector>
 
-class cmake;
+class cmGeneratorTarget;
 class cmGlobalGenerator;
 class cmMakefile;
-class cmGeneratorTarget;
 class cmOrderDirectories;
+class cmake;
 
 /** \class cmComputeLinkInformation
  * \brief Compute link information for a target in one configuration.
@@ -35,11 +30,25 @@ public:
 
   struct Item
   {
-    Item(): Value(), IsPath(true), Target(0) {}
-    Item(Item const& item):
-      Value(item.Value), IsPath(item.IsPath), Target(item.Target) {}
-    Item(std::string const& v, bool p, cmGeneratorTarget const* target = 0):
-      Value(v), IsPath(p), Target(target) {}
+    Item()
+      : Value()
+      , IsPath(true)
+      , Target(CM_NULLPTR)
+    {
+    }
+    Item(Item const& item)
+      : Value(item.Value)
+      , IsPath(item.IsPath)
+      , Target(item.Target)
+    {
+    }
+    Item(std::string const& v, bool p,
+         cmGeneratorTarget const* target = CM_NULLPTR)
+      : Value(v)
+      , IsPath(p)
+      , Target(target)
+    {
+    }
     std::string Value;
     bool IsPath;
     cmGeneratorTarget const* Target;
@@ -60,6 +69,8 @@ public:
 
   std::string const& GetRPathLinkFlag() const { return this->RPathLinkFlag; }
   std::string GetRPathLinkString();
+
+  std::string GetConfig() const { return this->Config; }
 private:
   void AddItem(std::string const& item, const cmGeneratorTarget* tgt);
   void AddSharedDepItem(std::string const& item, cmGeneratorTarget const* tgt);
@@ -101,7 +112,12 @@ private:
   std::string RPathLinkFlag;
   SharedDepMode SharedDependencyMode;
 
-  enum LinkType { LinkUnknown, LinkStatic, LinkShared };
+  enum LinkType
+  {
+    LinkUnknown,
+    LinkStatic,
+    LinkShared
+  };
   void SetCurrentLinkType(LinkType lt);
 
   // Link type adjustment.
@@ -184,7 +200,6 @@ private:
   void AddLibraryRuntimeInfo(std::string const& fullPath,
                              const cmGeneratorTarget* target);
   void AddLibraryRuntimeInfo(std::string const& fullPath);
-
 };
 
 #endif

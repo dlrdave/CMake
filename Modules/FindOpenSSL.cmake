@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindOpenSSL
 # -----------
@@ -38,21 +41,6 @@
 # Set ``OPENSSL_ROOT_DIR`` to the root directory of an OpenSSL installation.
 # Set ``OPENSSL_USE_STATIC_LIBS`` to ``TRUE`` to look for static libraries.
 # Set ``OPENSSL_MSVC_STATIC_RT`` set ``TRUE`` to choose the MT version of the lib.
-
-#=============================================================================
-# Copyright 2006-2009 Kitware, Inc.
-# Copyright 2006 Alexander Neundorf <neundorf@kde.org>
-# Copyright 2009-2011 Mathieu Malaterre <mathieu.malaterre@gmail.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 if (UNIX)
   find_package(PkgConfig QUIET)
@@ -133,24 +121,34 @@ if(WIN32 AND NOT CYGWIN)
       set(_OPENSSL_MSVC_RT_MODE "MD")
     endif ()
 
+    # Since OpenSSL 1.1, lib names are like libcrypto32MTd.lib and libssl32MTd.lib
+    if( "${CMAKE_SIZEOF_VOID_P}" STREQUAL "8" )
+        set(_OPENSSL_MSVC_ARCH_SUFFIX "64")
+    else()
+        set(_OPENSSL_MSVC_ARCH_SUFFIX "32")
+    endif()
+
     if(OPENSSL_USE_STATIC_LIBS)
       set(_OPENSSL_PATH_SUFFIXES
-        "lib"
-        "VC/static"
         "lib/VC/static"
+        "VC/static"
+        "lib"
         )
     else()
       set(_OPENSSL_PATH_SUFFIXES
-        "lib"
-        "VC"
         "lib/VC"
+        "VC"
+        "lib"
         )
     endif ()
 
     find_library(LIB_EAY_DEBUG
       NAMES
+        libcrypto${_OPENSSL_MSVC_ARCH_SUFFIX}${_OPENSSL_MSVC_RT_MODE}d
+        libcryptod
         libeay32${_OPENSSL_MSVC_RT_MODE}d
         libeay32d
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
         ${_OPENSSL_PATH_SUFFIXES}
@@ -158,8 +156,12 @@ if(WIN32 AND NOT CYGWIN)
 
     find_library(LIB_EAY_RELEASE
       NAMES
+        libcrypto${_OPENSSL_MSVC_ARCH_SUFFIX}${_OPENSSL_MSVC_RT_MODE}
+        libcrypto
         libeay32${_OPENSSL_MSVC_RT_MODE}
         libeay32
+        crypto
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
         ${_OPENSSL_PATH_SUFFIXES}
@@ -167,8 +169,11 @@ if(WIN32 AND NOT CYGWIN)
 
     find_library(SSL_EAY_DEBUG
       NAMES
+        libssl${_OPENSSL_MSVC_ARCH_SUFFIX}${_OPENSSL_MSVC_RT_MODE}d
+        libssld
         ssleay32${_OPENSSL_MSVC_RT_MODE}d
         ssleay32d
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
         ${_OPENSSL_PATH_SUFFIXES}
@@ -176,9 +181,12 @@ if(WIN32 AND NOT CYGWIN)
 
     find_library(SSL_EAY_RELEASE
       NAMES
+        libssl${_OPENSSL_MSVC_ARCH_SUFFIX}${_OPENSSL_MSVC_RT_MODE}
+        libssl
         ssleay32${_OPENSSL_MSVC_RT_MODE}
         ssleay32
         ssl
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
         ${_OPENSSL_PATH_SUFFIXES}
@@ -197,7 +205,6 @@ if(WIN32 AND NOT CYGWIN)
                      SSL_EAY_LIBRARY_DEBUG SSL_EAY_LIBRARY_RELEASE)
     set(OPENSSL_SSL_LIBRARY ${SSL_EAY_LIBRARY} )
     set(OPENSSL_CRYPTO_LIBRARY ${LIB_EAY_LIBRARY} )
-    set(OPENSSL_LIBRARIES ${SSL_EAY_LIBRARY} ${LIB_EAY_LIBRARY} )
   elseif(MINGW)
     # same player, for MinGW
     set(LIB_EAY_NAMES crypto libeay32)
@@ -205,32 +212,35 @@ if(WIN32 AND NOT CYGWIN)
     find_library(LIB_EAY
       NAMES
         ${LIB_EAY_NAMES}
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
-        "lib"
         "lib/MinGW"
+        "lib"
     )
 
     find_library(SSL_EAY
       NAMES
         ${SSL_EAY_NAMES}
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       PATH_SUFFIXES
-        "lib"
         "lib/MinGW"
+        "lib"
     )
 
     mark_as_advanced(SSL_EAY LIB_EAY)
     set(OPENSSL_SSL_LIBRARY ${SSL_EAY} )
     set(OPENSSL_CRYPTO_LIBRARY ${LIB_EAY} )
-    set(OPENSSL_LIBRARIES ${SSL_EAY} ${LIB_EAY} )
     unset(LIB_EAY_NAMES)
     unset(SSL_EAY_NAMES)
   else()
     # Not sure what to pick for -say- intel, let's use the toplevel ones and hope someone report issues:
     find_library(LIB_EAY
       NAMES
+        libcrypto
         libeay32
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       HINTS
         ${_OPENSSL_LIBDIR}
@@ -240,7 +250,9 @@ if(WIN32 AND NOT CYGWIN)
 
     find_library(SSL_EAY
       NAMES
+        libssl
         ssleay32
+      NAMES_PER_DIR
       ${_OPENSSL_ROOT_HINTS_AND_PATHS}
       HINTS
         ${_OPENSSL_LIBDIR}
@@ -251,7 +263,6 @@ if(WIN32 AND NOT CYGWIN)
     mark_as_advanced(SSL_EAY LIB_EAY)
     set(OPENSSL_SSL_LIBRARY ${SSL_EAY} )
     set(OPENSSL_CRYPTO_LIBRARY ${LIB_EAY} )
-    set(OPENSSL_LIBRARIES ${SSL_EAY} ${LIB_EAY} )
   endif()
 else()
 
@@ -260,6 +271,7 @@ else()
       ssl
       ssleay32
       ssleay32MD
+    NAMES_PER_DIR
     ${_OPENSSL_ROOT_HINTS_AND_PATHS}
     HINTS
       ${_OPENSSL_LIBDIR}
@@ -270,6 +282,7 @@ else()
   find_library(OPENSSL_CRYPTO_LIBRARY
     NAMES
       crypto
+    NAMES_PER_DIR
     ${_OPENSSL_ROOT_HINTS_AND_PATHS}
     HINTS
       ${_OPENSSL_LIBDIR}
@@ -282,8 +295,6 @@ else()
   # compat defines
   set(OPENSSL_SSL_LIBRARIES ${OPENSSL_SSL_LIBRARY})
   set(OPENSSL_CRYPTO_LIBRARIES ${OPENSSL_CRYPTO_LIBRARY})
-
-  set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY})
 
 endif()
 
@@ -318,11 +329,11 @@ function(from_hex HEX DEC)
   set(${DEC} ${_res} PARENT_SCOPE)
 endfunction()
 
-if (OPENSSL_INCLUDE_DIR)
-  if(OPENSSL_INCLUDE_DIR AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
-    file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" openssl_version_str
-         REGEX "^#[\t ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x([0-9a-fA-F])+.*")
+if(OPENSSL_INCLUDE_DIR AND EXISTS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h")
+  file(STRINGS "${OPENSSL_INCLUDE_DIR}/openssl/opensslv.h" openssl_version_str
+       REGEX "^#[\t ]*define[\t ]+OPENSSL_VERSION_NUMBER[\t ]+0x([0-9a-fA-F])+.*")
 
+  if(openssl_version_str)
     # The version number is encoded as 0xMNNFFPPS: major minor fix patch status
     # The status gives if this is a developer or prerelease and is ignored here.
     # Major, minor, and fix directly translate into the version numbers shown in
@@ -356,10 +367,13 @@ endif ()
 
 include(${CMAKE_CURRENT_LIST_DIR}/FindPackageHandleStandardArgs.cmake)
 
+set(OPENSSL_LIBRARIES ${OPENSSL_SSL_LIBRARY} ${OPENSSL_CRYPTO_LIBRARY} )
+
 if (OPENSSL_VERSION)
   find_package_handle_standard_args(OpenSSL
     REQUIRED_VARS
-      OPENSSL_LIBRARIES
+      OPENSSL_SSL_LIBRARY
+      OPENSSL_CRYPTO_LIBRARY
       OPENSSL_INCLUDE_DIR
     VERSION_VAR
       OPENSSL_VERSION
@@ -368,7 +382,8 @@ if (OPENSSL_VERSION)
   )
 else ()
   find_package_handle_standard_args(OpenSSL "Could NOT find OpenSSL, try to set the path to OpenSSL root folder in the system variable OPENSSL_ROOT_DIR"
-    OPENSSL_LIBRARIES
+    OPENSSL_SSL_LIBRARY
+    OPENSSL_CRYPTO_LIBRARY
     OPENSSL_INCLUDE_DIR
   )
 endif ()
@@ -389,19 +404,19 @@ if(OPENSSL_FOUND)
         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
         IMPORTED_LOCATION "${OPENSSL_CRYPTO_LIBRARY}")
     endif()
-    if(EXISTS "${LIB_EAY_LIBRARY_DEBUG}")
-      set_property(TARGET OpenSSL::Crypto APPEND PROPERTY
-        IMPORTED_CONFIGURATIONS DEBUG)
-      set_target_properties(OpenSSL::Crypto PROPERTIES
-        IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
-        IMPORTED_LOCATION_DEBUG "${LIB_EAY_LIBRARY_DEBUG}")
-    endif()
     if(EXISTS "${LIB_EAY_LIBRARY_RELEASE}")
       set_property(TARGET OpenSSL::Crypto APPEND PROPERTY
         IMPORTED_CONFIGURATIONS RELEASE)
       set_target_properties(OpenSSL::Crypto PROPERTIES
         IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
         IMPORTED_LOCATION_RELEASE "${LIB_EAY_LIBRARY_RELEASE}")
+    endif()
+    if(EXISTS "${LIB_EAY_LIBRARY_DEBUG}")
+      set_property(TARGET OpenSSL::Crypto APPEND PROPERTY
+        IMPORTED_CONFIGURATIONS DEBUG)
+      set_target_properties(OpenSSL::Crypto PROPERTIES
+        IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
+        IMPORTED_LOCATION_DEBUG "${LIB_EAY_LIBRARY_DEBUG}")
     endif()
   endif()
   if(NOT TARGET OpenSSL::SSL AND
@@ -417,19 +432,19 @@ if(OPENSSL_FOUND)
         IMPORTED_LINK_INTERFACE_LANGUAGES "C"
         IMPORTED_LOCATION "${OPENSSL_SSL_LIBRARY}")
     endif()
-    if(EXISTS "${SSL_EAY_LIBRARY_DEBUG}")
-      set_property(TARGET OpenSSL::SSL APPEND PROPERTY
-        IMPORTED_CONFIGURATIONS DEBUG)
-      set_target_properties(OpenSSL::SSL PROPERTIES
-        IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
-        IMPORTED_LOCATION_DEBUG "${SSL_EAY_LIBRARY_DEBUG}")
-    endif()
     if(EXISTS "${SSL_EAY_LIBRARY_RELEASE}")
       set_property(TARGET OpenSSL::SSL APPEND PROPERTY
         IMPORTED_CONFIGURATIONS RELEASE)
       set_target_properties(OpenSSL::SSL PROPERTIES
         IMPORTED_LINK_INTERFACE_LANGUAGES_RELEASE "C"
         IMPORTED_LOCATION_RELEASE "${SSL_EAY_LIBRARY_RELEASE}")
+    endif()
+    if(EXISTS "${SSL_EAY_LIBRARY_DEBUG}")
+      set_property(TARGET OpenSSL::SSL APPEND PROPERTY
+        IMPORTED_CONFIGURATIONS DEBUG)
+      set_target_properties(OpenSSL::SSL PROPERTIES
+        IMPORTED_LINK_INTERFACE_LANGUAGES_DEBUG "C"
+        IMPORTED_LOCATION_DEBUG "${SSL_EAY_LIBRARY_DEBUG}")
     endif()
     if(TARGET OpenSSL::Crypto)
       set_target_properties(OpenSSL::SSL PROPERTIES

@@ -1,27 +1,17 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2015 Kitware, Inc., Gregor Jasny
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "RegexExplorer.h"
 
-RegexExplorer::RegexExplorer(QWidget* p) : QDialog(p), m_matched(false)
+RegexExplorer::RegexExplorer(QWidget* p)
+  : QDialog(p)
+  , m_matched(false)
 {
   this->setupUi(this);
 
-  for(int i = 1; i < cmsys::RegularExpression::NSUBEXP; ++i)
-    {
-    matchNumber->addItem(
-      QString("Match %1").arg(QString::number(i)),
-      QVariant(i));
-    }
+  for (int i = 1; i < cmsys::RegularExpression::NSUBEXP; ++i) {
+    matchNumber->addItem(QString("Match %1").arg(QString::number(i)),
+                         QVariant(i));
+  }
   matchNumber->setCurrentIndex(0);
 }
 
@@ -44,10 +34,9 @@ void RegexExplorer::on_regularExpression_textChanged(const QString& text)
 
   bool validExpression =
     stripEscapes(m_regex) && m_regexParser.compile(m_regex);
-  if(!validExpression)
-    {
+  if (!validExpression) {
     m_regexParser.set_invalid();
-    }
+  }
 
   setStatusColor(labelRegexValid, validExpression);
 
@@ -56,8 +45,7 @@ void RegexExplorer::on_regularExpression_textChanged(const QString& text)
 
 void RegexExplorer::on_inputText_textChanged()
 {
-  if(m_regexParser.is_valid())
-    {
+  if (m_regexParser.is_valid()) {
     QString plainText = inputText->toPlainText();
 #ifdef QT_NO_STL
     m_text = plainText.toAscii().constData();
@@ -65,24 +53,43 @@ void RegexExplorer::on_inputText_textChanged()
     m_text = plainText.toStdString();
 #endif
     m_matched = m_regexParser.find(m_text);
-    }
-  else
-    {
+  } else {
     m_matched = false;
-    }
+  }
 
   setStatusColor(labelRegexMatch, m_matched);
 
-  if(!m_matched)
-    {
+  if (!m_matched) {
     clearMatch();
     return;
+  }
+
+  std::string matchingText;
+
+  if (matchAll->isChecked()) {
+    const char* p = m_text.c_str();
+    while (m_regexParser.find(p)) {
+      std::string::size_type l = m_regexParser.start();
+      std::string::size_type r = m_regexParser.end();
+      if (r - l == 0) {
+        // matched empty string
+        clearMatch();
+        return;
+      }
+      if (!matchingText.empty()) {
+        matchingText += ";";
+      }
+      matchingText += std::string(p + l, r - l);
+      p += r;
     }
+  } else {
+    matchingText = m_regexParser.match(0);
+  }
 
 #ifdef QT_NO_STL
-  QString matchText = m_regexParser.match(0).c_str();
+  QString matchText = matchingText.c_str();
 #else
-  QString matchText = QString::fromStdString(m_regexParser.match(0));
+  QString matchText = QString::fromStdString(matchingText);
 #endif
   match0->setPlainText(matchText);
 
@@ -91,18 +98,16 @@ void RegexExplorer::on_inputText_textChanged()
 
 void RegexExplorer::on_matchNumber_currentIndexChanged(int index)
 {
-  if(!m_matched)
-    {
+  if (!m_matched) {
     return;
-    }
+  }
 
   QVariant itemData = matchNumber->itemData(index);
   int idx = itemData.toInt();
 
-  if(idx < 1 || idx >= cmsys::RegularExpression::NSUBEXP)
-    {
+  if (idx < 1 || idx >= cmsys::RegularExpression::NSUBEXP) {
     return;
-    }
+  }
 
 #ifdef QT_NO_STL
   QString match = m_regexParser.match(idx).c_str();
@@ -112,8 +117,16 @@ void RegexExplorer::on_matchNumber_currentIndexChanged(int index)
   matchN->setPlainText(match);
 }
 
+void RegexExplorer::on_matchAll_toggled(bool checked)
+{
+  Q_UNUSED(checked);
+
+  on_inputText_textChanged();
+}
+
 void RegexExplorer::clearMatch()
 {
+  m_matched = false;
   match0->clear();
   matchN->clear();
 }
@@ -125,42 +138,29 @@ bool RegexExplorer::stripEscapes(std::string& source)
   std::string result;
   result.reserve(source.size());
 
-  for(char inc = *in; inc != '\0'; inc = *++in)
-    {
-    if(inc == '\\')
-      {
+  for (char inc = *in; inc != '\0'; inc = *++in) {
+    if (inc == '\\') {
       char nextc = in[1];
-      if(nextc == 't')
-        {
+      if (nextc == 't') {
         result.append(1, '\t');
         in++;
-        }
-      else if(nextc == 'n')
-        {
+      } else if (nextc == 'n') {
         result.append(1, '\n');
         in++;
-        }
-      else if(nextc == 't')
-        {
+      } else if (nextc == 't') {
         result.append(1, '\t');
         in++;
-        }
-      else if(isalnum(nextc) || nextc == '\0')
-        {
+      } else if (isalnum(nextc) || nextc == '\0') {
         return false;
-        }
-      else
-        {
+      } else {
         result.append(1, nextc);
         in++;
-        }
       }
-    else
-      {
-        result.append(1, inc);
-      }
+    } else {
+      result.append(1, inc);
     }
+  }
 
-    source = result;
-    return true;
+  source = result;
+  return true;
 }

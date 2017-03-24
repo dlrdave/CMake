@@ -1,29 +1,27 @@
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef CMGRAPHVIZWRITER_H
 #define CMGRAPHVIZWRITER_H
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
 
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
+#include <cmConfigure.h> // IWYU pragma: keep
 
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-#include "cmStandardIncludes.h"
-#include "cmLocalGenerator.h"
-#include "cmGeneratedFileStream.h"
+#include "cmStateTypes.h"
+
 #include <cmsys/RegularExpression.hxx>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
+class cmGeneratedFileStream;
 class cmGeneratorTarget;
+class cmLocalGenerator;
 
 /** This class implements writing files for graphviz (dot) for graphs
  * representing the dependencies between the targets in the project. */
 class cmGraphVizWriter
 {
 public:
-
   cmGraphVizWriter(const std::vector<cmLocalGenerator*>& localGenerators);
 
   void ReadSettings(const char* settingsFileName,
@@ -35,7 +33,6 @@ public:
   void WriteGlobalFile(const char* fileName);
 
 protected:
-
   void CollectTargetsAndLibs();
 
   int CollectAllTargets();
@@ -63,7 +60,7 @@ protected:
 
   bool IgnoreThisTarget(const std::string& name);
 
-  bool GenerateForTargetType(cmState::TargetType targetType) const;
+  bool GenerateForTargetType(cmStateEnums::TargetType targetType) const;
 
   std::string GraphType;
   std::string GraphName;

@@ -60,7 +60,7 @@ elseif (CPackGen MATCHES "RPM")
         set(expected_count 1)
     endif ()
 elseif (CPackGen MATCHES "DEB")
-    set(expected_file_mask "${CPackComponentsForAll_BINARY_DIR}/MyLib-*.deb")
+    set(expected_file_mask "${CPackComponentsForAll_BINARY_DIR}/mylib*_1.0.2-1_*.deb")
     if (${CPackComponentWay} STREQUAL "default")
         set(expected_count 1)
     elseif (${CPackComponentWay} STREQUAL "OnePackPerGroup")
@@ -118,7 +118,7 @@ if(expected_file_mask)
   message(STATUS "expected_file_mask='${expected_file_mask}'")
 
   if(NOT expected_file)
-    message(FATAL_ERROR "error: expected_file=${expected_file} does not exist: CPackComponentsForAll test fails. (CPack_output=${CPack_output}, CPack_error=${CPack_error}")
+    message(FATAL_ERROR "error: expected_file does not exist: CPackComponentsForAll test fails. (CPack_output=${CPack_output}, CPack_error=${CPack_error}")
   endif()
 
   list(LENGTH expected_file actual_count)
@@ -136,8 +136,8 @@ if(CPackGen MATCHES "RPM")
   endif()
 
   set(CPACK_RPM_PACKAGE_SUMMARY "default summary")
-  set(CPACK_RPM_headers_PACKAGE_SUMMARY "headers summary")
-  set(CPACK_RPM_headers_PACKAGE_DESCRIPTION "headers description")
+  set(CPACK_RPM_HEADERS_PACKAGE_SUMMARY "headers summary")
+  set(CPACK_RPM_HEADERS_PACKAGE_DESCRIPTION "headers description")
   set(CPACK_COMPONENT_APPLICATIONS_DESCRIPTION
     "An extremely useful application that makes use of MyLib")
   set(CPACK_COMPONENT_LIBRARIES_DESCRIPTION
@@ -188,6 +188,7 @@ if(CPackGen MATCHES "RPM")
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/depth_three
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/depth_three/symlink_parentdir_path
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/symlink_outside_package
+/usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/symlink_outside_wdr
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/symlink_relocatable_subpath
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/symlink_samedir_path
 /usr/foo/bar/lib${LIB_SUFFIX}/inside_relocatable_one/depth_two/symlink_samedir_path_current_dir
@@ -206,8 +207,8 @@ if(CPackGen MATCHES "RPM")
 /usr/foo/bar/other_relocatable
 /usr/foo/bar/other_relocatable/depth_two$")
       elseif(check_file_headers_match)
-        set(check_file_match_expected_summary ".*${CPACK_RPM_headers_PACKAGE_SUMMARY}.*")
-        set(check_file_match_expected_description ".*${CPACK_RPM_headers_PACKAGE_DESCRIPTION}.*")
+        set(check_file_match_expected_summary ".*${CPACK_RPM_HEADERS_PACKAGE_SUMMARY}.*")
+        set(check_file_match_expected_description ".*${CPACK_RPM_HEADERS_PACKAGE_DESCRIPTION}.*")
         set(check_file_match_expected_relocation_path "Relocations${whitespaces}:${whitespaces}${CPACK_PACKAGING_INSTALL_PREFIX}${whitespaces}${CPACK_PACKAGING_INSTALL_PREFIX}/${CMAKE_INSTALL_INCLUDEDIR}")
         set(check_file_match_expected_architecture "noarch")
         set(spec_regex "*headers*")
@@ -304,6 +305,30 @@ if(CPackGen MATCHES "RPM")
 
         message(FATAL_ERROR "error: '${check_file}' rpm package content does not match expected value - regex '${check_content_list}'; RPM output: '${check_package_content}'; generated spec file: '${spec_file_content}'")
       endif()
+
+      # validate permissions user and group
+      execute_process(COMMAND ${RPM_EXECUTABLE} -pqlv ${check_file}
+          OUTPUT_VARIABLE check_file_content
+          ERROR_QUIET
+          OUTPUT_STRIP_TRAILING_WHITESPACE)
+
+      if(check_file_libraries_match)
+        set(check_file_match_expected_permissions ".*-rwx------.*user.*defgrp.*")
+      elseif(check_file_headers_match)
+        set(check_file_match_expected_permissions ".*-rwxr--r--.*defusr.*defgrp.*")
+      elseif(check_file_applications_match)
+        set(check_file_match_expected_permissions ".*-rwxr--r--.*defusr.*group.*")
+      elseif(check_file_Unspecified_match)
+        set(check_file_match_expected_permissions ".*-rwxr--r--.*defusr.*defgrp.*")
+      else()
+        message(FATAL_ERROR "error: unexpected rpm package '${check_file}'")
+      endif()
+
+      string(REGEX MATCH "${check_file_match_expected_permissions}" check_file_match_permissions "${check_file_content}")
+
+      if(NOT check_file_match_permissions)
+          message(FATAL_ERROR "error: '${check_file}' rpm package permissions do not match expected value - regex '${check_file_match_expected_permissions}'")
+      endif()
     endforeach()
 
     #######################
@@ -330,6 +355,8 @@ if(CPackGen MATCHES "RPM")
         string(REGEX MATCH "^.*${whitespaces}->${whitespaces}${CPACK_PACKAGING_INSTALL_PREFIX}/non_relocatable/depth_two$" check_symlink "${SYMLINK_POINT_}")
       elseif("${symlink_name}" STREQUAL "symlink_outside_package")
         string(REGEX MATCH "^.*${whitespaces}->${whitespaces}outside_package$" check_symlink "${SYMLINK_POINT_}")
+      elseif("${symlink_name}" STREQUAL "symlink_outside_wdr")
+        string(REGEX MATCH "^.*${whitespaces}->${whitespaces}/outside_package_wdr$" check_symlink "${SYMLINK_POINT_}")
       elseif("${symlink_name}" STREQUAL "symlink_other_relocatable_path"
           OR "${symlink_name}" STREQUAL "symlink_from_non_relocatable_path"
           OR "${symlink_name}" STREQUAL "symlink_relocatable_subpath")

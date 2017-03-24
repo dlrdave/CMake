@@ -80,7 +80,7 @@ archive_random(void *buf, size_t nbytes)
 
 	success = CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
 	    CRYPT_VERIFYCONTEXT);
-	if (!success && GetLastError() == NTE_BAD_KEYSET) {
+	if (!success && GetLastError() == (DWORD)NTE_BAD_KEYSET) {
 		success = CryptAcquireContext(&hProv, NULL, NULL,
 		    PROV_RSA_FULL, CRYPT_NEWKEYSET);
 	}
@@ -222,7 +222,7 @@ arc4_stir(void)
 	 * Discard early keystream, as per recommendations in:
 	 * "(Not So) Random Shuffles of RC4" by Ilya Mironov.
 	 */
-	for (i = 0; i < 1024; i++)
+	for (i = 0; i < 3072; i++)
 		(void)arc4_getbyte();
 	arc4_count = 1600000;
 }

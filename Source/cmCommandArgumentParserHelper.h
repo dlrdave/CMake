@@ -1,39 +1,22 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCommandArgumentParserHelper_h
 #define cmCommandArgumentParserHelper_h
 
-#include "cmStandardIncludes.h"
+#include <cmConfigure.h> // IWYU pragma: keep
 
-#define YYSTYPE cmCommandArgumentParserHelper::ParserType
-#define YYSTYPE_IS_DECLARED
-#define YY_EXTRA_TYPE cmCommandArgumentParserHelper*
-#define YY_DECL int cmCommandArgument_yylex(YYSTYPE* yylvalp,\
-  yyscan_t yyscanner)
-
-/** \class cmCommandArgumentParserHelper
- * \brief Helper class for parsing java source files
- *
- * Finds dependencies for java file and list of outputs
- */
+#include <string>
+#include <vector>
 
 class cmMakefile;
 
 class cmCommandArgumentParserHelper
 {
 public:
-  typedef struct {
+  struct ParserType
+  {
     char* str;
-  } ParserType;
+  };
 
   cmCommandArgumentParserHelper();
   ~cmCommandArgumentParserHelper();
@@ -42,9 +25,9 @@ public:
 
   // For the lexer:
   void AllocateParserType(cmCommandArgumentParserHelper::ParserType* pt,
-    const char* str, int len = 0);
+                          const char* str, int len = 0);
   bool HandleEscapeSymbol(cmCommandArgumentParserHelper::ParserType* pt,
-    char symbol);
+                          char symbol);
 
   int LexInput(char* buf, int maxlen);
   void Error(const char* str);
@@ -105,6 +88,10 @@ private:
   bool RemoveEmpty;
 };
 
+#define YYSTYPE cmCommandArgumentParserHelper::ParserType
+#define YYSTYPE_IS_DECLARED
+#define YY_EXTRA_TYPE cmCommandArgumentParserHelper*
+#define YY_DECL                                                               \
+  int cmCommandArgument_yylex(YYSTYPE* yylvalp, yyscan_t yyscanner)
+
 #endif
-
-

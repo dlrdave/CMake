@@ -14,6 +14,7 @@ All Modules
    :maxdepth: 1
 
    /module/AddFileDependencies
+   /module/AndroidTestUtilities
    /module/BundleUtilities
    /module/CheckCCompilerFlag
    /module/CheckCSourceCompiles
@@ -26,6 +27,7 @@ All Modules
    /module/CheckFortranFunctionExists
    /module/CheckFortranSourceCompiles
    /module/CheckFunctionExists
+   /module/CheckIPOSupported
    /module/CheckIncludeFileCXX
    /module/CheckIncludeFile
    /module/CheckIncludeFiles
@@ -58,11 +60,14 @@ All Modules
    /module/CPackDeb
    /module/CPackDMG
    /module/CPackIFW
+   /module/CPackIFWConfigureFile
    /module/CPackNSIS
    /module/CPackPackageMaker
+   /module/CPackProductBuild
    /module/CPackRPM
    /module/CPack
    /module/CPackWIX
+   /module/CSharpUtilities
    /module/CTest
    /module/CTestCoverageCollectGCOV
    /module/CTestScriptMode
@@ -120,6 +125,7 @@ All Modules
    /module/FindHTMLHelp
    /module/FindIce
    /module/FindIcotool
+   /module/FindICU
    /module/FindImageMagick
    /module/FindIntl
    /module/FindITK
@@ -135,6 +141,7 @@ All Modules
    /module/FindLibLZMA
    /module/FindLibXml2
    /module/FindLibXslt
+   /module/FindLTTngUST
    /module/FindLua50
    /module/FindLua51
    /module/FindLua
@@ -208,11 +215,13 @@ All Modules
    /module/FindTIFF
    /module/FindUnixCommands
    /module/FindVTK
+   /module/FindVulkan
    /module/FindWget
    /module/FindWish
    /module/FindwxWidgets
    /module/FindwxWindows
    /module/FindXCTest
+   /module/FindXalanC
    /module/FindXercesC
    /module/FindX11
    /module/FindXMLRPC
@@ -221,6 +230,7 @@ All Modules
    /module/GenerateExportHeader
    /module/GetPrerequisites
    /module/GNUInstallDirs
+   /module/GoogleTest
    /module/InstallRequiredSystemLibraries
    /module/MacroAddFileDependencies
    /module/ProcessorCount

@@ -1,21 +1,20 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmExportBuildFileGenerator_h
 #define cmExportBuildFileGenerator_h
 
+#include <cmConfigure.h>
+
 #include "cmExportFileGenerator.h"
-#include "cmListFileCache.h"
+
+#include <iosfwd>
+#include <string>
+#include <vector>
 
 class cmExportSet;
+class cmGeneratorTarget;
+class cmGlobalGenerator;
+class cmLocalGenerator;
 
 /** \class cmExportBuildFileGenerator
  * \brief Generate a file exporting targets from a build tree.
@@ -26,18 +25,21 @@ class cmExportSet;
  *
  * This is used to implement the EXPORT() command.
  */
-class cmExportBuildFileGenerator: public cmExportFileGenerator
+class cmExportBuildFileGenerator : public cmExportFileGenerator
 {
 public:
   cmExportBuildFileGenerator();
 
   /** Set the list of targets to export.  */
   void SetTargets(std::vector<std::string> const& targets)
-    { this->Targets = targets; }
-  void GetTargets(std::vector<std::string> &targets) const;
+  {
+    this->Targets = targets;
+  }
+  void GetTargets(std::vector<std::string>& targets) const;
   void AppendTargets(std::vector<std::string> const& targets)
-    { this->Targets.insert(this->Targets.end(),
-      targets.begin(), targets.end()); }
+  {
+    this->Targets.insert(this->Targets.end(), targets.begin(), targets.end());
+  }
   void SetExportSet(cmExportSet*);
 
   /** Set whether to append generated code to the output file.  */
@@ -47,15 +49,14 @@ public:
 
 protected:
   // Implement virtual methods from the superclass.
-  virtual bool GenerateMainFile(std::ostream& os);
-  virtual void GenerateImportTargetsConfig(std::ostream& os,
-                                           const std::string& config,
-                                           std::string const& suffix,
-                            std::vector<std::string> &missingTargets);
-  virtual void HandleMissingTarget(std::string& link_libs,
-                                   std::vector<std::string>& missingTargets,
-                                   cmGeneratorTarget* depender,
-                                   cmGeneratorTarget* dependee);
+  bool GenerateMainFile(std::ostream& os) CM_OVERRIDE;
+  void GenerateImportTargetsConfig(
+    std::ostream& os, const std::string& config, std::string const& suffix,
+    std::vector<std::string>& missingTargets) CM_OVERRIDE;
+  void HandleMissingTarget(std::string& link_libs,
+                           std::vector<std::string>& missingTargets,
+                           cmGeneratorTarget* depender,
+                           cmGeneratorTarget* dependee) CM_OVERRIDE;
 
   void ComplainAboutMissingTarget(cmGeneratorTarget* depender,
                                   cmGeneratorTarget* dependee,
@@ -68,13 +69,13 @@ protected:
                                  ImportPropertyMap& properties);
 
   std::string InstallNameDir(cmGeneratorTarget* target,
-                             const std::string& config);
+                             const std::string& config) CM_OVERRIDE;
 
-  std::vector<std::string>
-  FindNamespaces(cmGlobalGenerator* gg, const std::string& name);
+  std::vector<std::string> FindNamespaces(cmGlobalGenerator* gg,
+                                          const std::string& name);
 
   std::vector<std::string> Targets;
-  cmExportSet *ExportSet;
+  cmExportSet* ExportSet;
   std::vector<cmGeneratorTarget*> Exports;
   cmLocalGenerator* LG;
 };

@@ -1,36 +1,32 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2014 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmWIXPatch.h"
 
 #include <CPack/cmCPackGenerator.h>
 
-cmWIXPatch::cmWIXPatch(cmCPackLog* logger):
-  Logger(logger)
+cmWIXPatch::cmWIXPatch(cmCPackLog* logger)
+  : Logger(logger)
 {
-
 }
 
-void cmWIXPatch::LoadFragments(std::string const& patchFilePath)
+bool cmWIXPatch::LoadFragments(std::string const& patchFilePath)
 {
   cmWIXPatchParser parser(Fragments, Logger);
-  parser.ParseFile(patchFilePath.c_str());
+  if (!parser.ParseFile(patchFilePath.c_str())) {
+    cmCPackLogger(cmCPackLog::LOG_ERROR, "Failed parsing XML patch file: '"
+                    << patchFilePath << "'" << std::endl);
+    return false;
+  }
+
+  return true;
 }
 
-void cmWIXPatch::ApplyFragment(
-  std::string const& id, cmWIXSourceWriter& writer)
+void cmWIXPatch::ApplyFragment(std::string const& id,
+                               cmWIXSourceWriter& writer)
 {
   cmWIXPatchParser::fragment_map_t::iterator i = Fragments.find(id);
-  if(i == Fragments.end()) return;
+  if (i == Fragments.end())
+    return;
 
   const cmWIXPatchElement& fragment = i->second;
 
@@ -39,36 +35,35 @@ void cmWIXPatch::ApplyFragment(
   Fragments.erase(i);
 }
 
-void cmWIXPatch::ApplyElementChildren(
-  const cmWIXPatchElement& element, cmWIXSourceWriter& writer)
+void cmWIXPatch::ApplyElementChildren(const cmWIXPatchElement& element,
+                                      cmWIXSourceWriter& writer)
 {
-  for(cmWIXPatchElement::child_list_t::const_iterator
-    j = element.children.begin(); j != element.children.end(); ++j)
-  {
-  cmWIXPatchNode *node = *j;
+  for (cmWIXPatchElement::child_list_t::const_iterator j =
+         element.children.begin();
+       j != element.children.end(); ++j) {
+    cmWIXPatchNode* node = *j;
 
-  switch(node->type())
-    {
-    case cmWIXPatchNode::ELEMENT:
-      ApplyElement(dynamic_cast<const cmWIXPatchElement&>(*node), writer);
-      break;
-    case cmWIXPatchNode::TEXT:
-      writer.AddTextNode(dynamic_cast<const cmWIXPatchText&>(*node).text);
-      break;
+    switch (node->type()) {
+      case cmWIXPatchNode::ELEMENT:
+        ApplyElement(dynamic_cast<const cmWIXPatchElement&>(*node), writer);
+        break;
+      case cmWIXPatchNode::TEXT:
+        writer.AddTextNode(dynamic_cast<const cmWIXPatchText&>(*node).text);
+        break;
     }
   }
 }
 
-void cmWIXPatch::ApplyElement(
-  const cmWIXPatchElement& element, cmWIXSourceWriter& writer)
+void cmWIXPatch::ApplyElement(const cmWIXPatchElement& element,
+                              cmWIXSourceWriter& writer)
 {
   writer.BeginElement(element.name);
 
-  for(cmWIXPatchElement::attributes_t::const_iterator
-    i = element.attributes.begin(); i != element.attributes.end(); ++i)
-    {
+  for (cmWIXPatchElement::attributes_t::const_iterator i =
+         element.attributes.begin();
+       i != element.attributes.end(); ++i) {
     writer.AddAttribute(i->first, i->second);
-    }
+  }
 
   this->ApplyElementChildren(element, writer);
 
@@ -78,26 +73,23 @@ void cmWIXPatch::ApplyElement(
 bool cmWIXPatch::CheckForUnappliedFragments()
 {
   std::string fragmentList;
-  for(cmWIXPatchParser::fragment_map_t::const_iterator
-    i = Fragments.begin(); i != Fragments.end(); ++i)
-    {
-    if(!fragmentList.empty())
-      {
+  for (cmWIXPatchParser::fragment_map_t::const_iterator i = Fragments.begin();
+       i != Fragments.end(); ++i) {
+    if (!fragmentList.empty()) {
       fragmentList += ", ";
-      }
+    }
 
     fragmentList += "'";
     fragmentList += i->first;
     fragmentList += "'";
-    }
+  }
 
-  if(!fragmentList.empty())
-    {
-      cmCPackLogger(cmCPackLog::LOG_ERROR,
-        "Some XML patch fragments did not have matching IDs: " <<
-        fragmentList << std::endl);
-      return false;
-    }
+  if (!fragmentList.empty()) {
+    cmCPackLogger(cmCPackLog::LOG_ERROR,
+                  "Some XML patch fragments did not have matching IDs: "
+                    << fragmentList << std::endl);
+    return false;
+  }
 
   return true;
 }

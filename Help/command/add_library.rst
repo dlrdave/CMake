@@ -33,7 +33,7 @@ type is ``STATIC`` or ``SHARED`` based on whether the current value of the
 variable :variable:`BUILD_SHARED_LIBS` is ``ON``.  For ``SHARED`` and
 ``MODULE`` libraries the :prop_tgt:`POSITION_INDEPENDENT_CODE` target
 property is set to ``ON`` automatically.
-A ``SHARED`` library may be marked with the :prop_tgt:`FRAMEWORK`
+A ``SHARED`` or ``STATIC`` library may be marked with the :prop_tgt:`FRAMEWORK`
 target property to create an OS X Framework.
 
 If a library does not export any symbols, it must not be declared as a
@@ -123,7 +123,7 @@ used to refer to ``<target>`` in subsequent commands.  The ``<name>`` does
 not appear in the generatedbuildsystem as a make target.  The ``<target>``
 may not be an :ref:`Imported Target <Imported Targets>` or an ``ALIAS``.
 ``ALIAS`` targets can be used as linkable targets and as targets to
-read properties from.  They can also be tested for existance with the
+read properties from.  They can also be tested for existence with the
 regular :command:`if(TARGET)` subcommand.  The ``<name>`` may not be used
 to modify properties of ``<target>``, that is, it may not be used as the
 operand of :command:`set_property`, :command:`set_target_properties`,

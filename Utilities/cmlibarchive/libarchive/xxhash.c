@@ -29,8 +29,13 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 You can contact the author at :
 - xxHash source repository : http://code.google.com/p/xxhash/
 */
-
 #include "archive_platform.h"
+
+#include <stdlib.h>
+#include <string.h>
+
+#include "archive_xxhash.h"
+
 #ifdef HAVE_LIBLZ4
 
 /***************************************
@@ -53,10 +58,10 @@ You can contact the author at :
 ** #define XXH_ACCEPT_NULL_INPUT_POINTER 1
 
 ** XXH_FORCE_NATIVE_FORMAT :
-** By default, xxHash library provides endian-independant Hash values, based on little-endian convention.
+** By default, xxHash library provides endian-independent Hash values, based on little-endian convention.
 ** Results are therefore identical for little-endian and big-endian CPU.
 ** This comes at a performance cost for big-endian CPU, since some swapping is required to emulate little-endian format.
-** Should endian-independance be of no importance for your application, you may set the #define below to 1.
+** Should endian-independence be of no importance for your application, you may set the #define below to 1.
 ** It will improve speed for Big-endian CPU.
 ** This option has no impact on Little_Endian CPU.
 */
@@ -83,11 +88,8 @@ You can contact the author at :
 /***************************************
 ** Includes & Memory related functions
 ****************************************/
-#include "archive_xxhash.h"
-#include <stdlib.h>
 #define XXH_malloc malloc
 #define XXH_free free
-#include <string.h>
 #define XXH_memcpy memcpy
 
 
@@ -497,4 +499,17 @@ struct archive_xxhash __archive_xxhash = {
 	XXH32_update,
 	XXH32_digest
 };
+#else
+
+/*
+ * Define an empty version of the struct if we aren't using the LZ4 library.
+ */
+const
+struct archive_xxhash __archive_xxhash = {
+	NULL,
+	NULL,
+	NULL,
+	NULL
+};
+
 #endif /* HAVE_LIBLZ4 */
