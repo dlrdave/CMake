@@ -14,6 +14,7 @@ All Modules
    :maxdepth: 1
 
    /module/AddFileDependencies
+   /module/AndroidTestUtilities
    /module/BundleUtilities
    /module/CheckCCompilerFlag
    /module/CheckCSourceCompiles
@@ -26,6 +27,7 @@ All Modules
    /module/CheckFortranFunctionExists
    /module/CheckFortranSourceCompiles
    /module/CheckFunctionExists
+   /module/CheckIPOSupported
    /module/CheckIncludeFileCXX
    /module/CheckIncludeFile
    /module/CheckIncludeFiles
@@ -52,17 +54,11 @@ All Modules
    /module/CMakePrintSystemInformation
    /module/CMakePushCheckState
    /module/CMakeVerifyManifest
-   /module/CPackBundle
    /module/CPackComponent
-   /module/CPackCygwin
-   /module/CPackDeb
-   /module/CPackDMG
    /module/CPackIFW
-   /module/CPackNSIS
-   /module/CPackPackageMaker
-   /module/CPackRPM
+   /module/CPackIFWConfigureFile
    /module/CPack
-   /module/CPackWIX
+   /module/CSharpUtilities
    /module/CTest
    /module/CTestCoverageCollectGCOV
    /module/CTestScriptMode
@@ -73,6 +69,7 @@ All Modules
    /module/ExternalData
    /module/ExternalProject
    /module/FeatureSummary
+   /module/FetchContent
    /module/FindALSA
    /module/FindArmadillo
    /module/FindASPELL
@@ -120,7 +117,9 @@ All Modules
    /module/FindHTMLHelp
    /module/FindIce
    /module/FindIcotool
+   /module/FindICU
    /module/FindImageMagick
+   /module/FindIconv
    /module/FindIntl
    /module/FindITK
    /module/FindJasper
@@ -135,6 +134,7 @@ All Modules
    /module/FindLibLZMA
    /module/FindLibXml2
    /module/FindLibXslt
+   /module/FindLTTngUST
    /module/FindLua50
    /module/FindLua51
    /module/FindLua
@@ -144,6 +144,8 @@ All Modules
    /module/FindMPEG2
    /module/FindMPEG
    /module/FindMPI
+   /module/FindODBC
+   /module/FindOpenACC
    /module/FindOpenAL
    /module/FindOpenCL
    /module/FindOpenGL
@@ -173,6 +175,7 @@ All Modules
    /module/FindosgWidget
    /module/FindPackageHandleStandardArgs
    /module/FindPackageMessage
+   /module/FindPatch
    /module/FindPerlLibs
    /module/FindPerl
    /module/FindPHP4
@@ -183,6 +186,9 @@ All Modules
    /module/FindPostgreSQL
    /module/FindProducer
    /module/FindProtobuf
+   /module/FindPython
+   /module/FindPython2
+   /module/FindPython3
    /module/FindPythonInterp
    /module/FindPythonLibs
    /module/FindQt3
@@ -208,11 +214,13 @@ All Modules
    /module/FindTIFF
    /module/FindUnixCommands
    /module/FindVTK
+   /module/FindVulkan
    /module/FindWget
    /module/FindWish
    /module/FindwxWidgets
    /module/FindwxWindows
    /module/FindXCTest
+   /module/FindXalanC
    /module/FindXercesC
    /module/FindX11
    /module/FindXMLRPC
@@ -221,6 +229,7 @@ All Modules
    /module/GenerateExportHeader
    /module/GetPrerequisites
    /module/GNUInstallDirs
+   /module/GoogleTest
    /module/InstallRequiredSystemLibraries
    /module/MacroAddFileDependencies
    /module/ProcessorCount
@@ -242,3 +251,26 @@ All Modules
    /module/Use_wxWindows
    /module/WriteBasicConfigVersionFile
    /module/WriteCompilerDetectionHeader
+
+Legacy CPack Modules
+====================
+
+These modules used to be mistakenly exposed to the user, and have been moved
+out of user visibility. They are for CPack internal use, and should never be
+used directly.
+
+.. toctree::
+   :maxdepth: 1
+
+   /module/CPackArchive
+   /module/CPackBundle
+   /module/CPackCygwin
+   /module/CPackDeb
+   /module/CPackDMG
+   /module/CPackFreeBSD
+   /module/CPackNSIS
+   /module/CPackNuGet
+   /module/CPackPackageMaker
+   /module/CPackProductBuild
+   /module/CPackRPM
+   /module/CPackWIX

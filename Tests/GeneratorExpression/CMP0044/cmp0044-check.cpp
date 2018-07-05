@@ -18,7 +18,7 @@
 #endif
 
 #if !defined(Type_Is_) && !defined(Type_Is_OLD) && !defined(Type_Is_NEW)
-#error No expected definition present
+#  error No expected definition present
 #endif
 
 void foo(void)

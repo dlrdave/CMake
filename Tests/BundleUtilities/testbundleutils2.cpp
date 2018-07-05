@@ -4,9 +4,9 @@
 #include "stdio.h"
 
 #if defined(WIN32)
-#include <windows.h>
+#  include <windows.h>
 #else
-#include "dlfcn.h"
+#  include "dlfcn.h"
 #endif
 
 int main(int, char**)
@@ -16,18 +16,15 @@ int main(int, char**)
 
 #if defined(WIN32)
   HANDLE lib = LoadLibraryA("module2.dll");
-  if(!lib)
-  {
+  if (!lib) {
     printf("Failed to open module2\n");
   }
 #else
   void* lib = dlopen("module2.so", RTLD_LAZY);
-  if(!lib)
-  {
+  if (!lib) {
     printf("Failed to open module2\n%s\n", dlerror());
   }
 #endif
-
 
   return lib == 0 ? 1 : 0;
 }

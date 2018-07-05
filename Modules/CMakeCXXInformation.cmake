@@ -1,22 +1,14 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2004-2011 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # This file sets the basic flags for the C++ language in CMake.
 # It also loads the available platform file for the system-compiler
 # if it exists.
 # It also loads a system - compiler - processor (or target hardware)
 # specific file, which is mainly useful for crosscompiling and embedded systems.
+
+include(CMakeLanguageInformation)
 
 # some compilers use different extensions (e.g. sdcc uses .rel)
 # so set the extension here first so it can be overridden by the compiler specific file
@@ -44,21 +36,27 @@ endif()
 # load a hardware specific file, mostly useful for embedded compilers
 if(CMAKE_SYSTEM_PROCESSOR)
   if(CMAKE_CXX_COMPILER_ID)
-    include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_CXX_COMPILER_ID}-CXX-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
+    include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_CXX_COMPILER_ID}-CXX-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
   endif()
   if (NOT _INCLUDED_FILE)
-    include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_BASE_NAME}-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL)
+    include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_BASE_NAME}-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL)
   endif ()
 endif()
 
 # load the system- and compiler specific files
 if(CMAKE_CXX_COMPILER_ID)
-  include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_CXX_COMPILER_ID}-CXX OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
+  include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_CXX_COMPILER_ID}-CXX OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
 endif()
 if (NOT _INCLUDED_FILE)
-  include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_BASE_NAME} OPTIONAL
+  include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_BASE_NAME} OPTIONAL
           RESULT_VARIABLE _INCLUDED_FILE)
 endif ()
+
+# load any compiler-wrapper specific information
+if (CMAKE_CXX_COMPILER_WRAPPER)
+  __cmake_include_compiler_wrapper(CXX)
+endif ()
+
 # We specify the compiler information in the system file for some
 # platforms, but this language may not have been enabled when the file
 # was first included.  Include it again to get the language info.
@@ -160,10 +158,6 @@ if(NOT CMAKE_INCLUDE_FLAG_CXX)
   set(CMAKE_INCLUDE_FLAG_CXX ${CMAKE_INCLUDE_FLAG_C})
 endif()
 
-if(NOT CMAKE_INCLUDE_FLAG_SEP_CXX)
-  set(CMAKE_INCLUDE_FLAG_SEP_CXX ${CMAKE_INCLUDE_FLAG_SEP_C})
-endif()
-
 # for most systems a module is the same as a shared library
 # so unless the variable CMAKE_MODULE_EXISTS is set just
 # copy the values from the LIBRARY variables
@@ -198,24 +192,8 @@ endforeach()
 # use _INIT variables so that this only happens the first time
 # and you can set these flags in the cmake cache
 set(CMAKE_CXX_FLAGS_INIT "$ENV{CXXFLAGS} ${CMAKE_CXX_FLAGS_INIT}")
-# avoid just having a space as the initial value for the cache
-if(CMAKE_CXX_FLAGS_INIT STREQUAL " ")
-  set(CMAKE_CXX_FLAGS_INIT)
-endif()
-set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_INIT}" CACHE STRING
-     "Flags used by the compiler during all build types.")
 
-if(NOT CMAKE_NOT_USING_CONFIG_FLAGS)
-  set (CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG_INIT}" CACHE STRING
-     "Flags used by the compiler during debug builds.")
-  set (CMAKE_CXX_FLAGS_MINSIZEREL "${CMAKE_CXX_FLAGS_MINSIZEREL_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds for minimum size.")
-  set (CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds.")
-  set (CMAKE_CXX_FLAGS_RELWITHDEBINFO "${CMAKE_CXX_FLAGS_RELWITHDEBINFO_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds with debug info.")
-
-endif()
+cmake_initialize_per_config_variable(CMAKE_CXX_FLAGS "Flags used by the CXX compiler")
 
 if(CMAKE_CXX_STANDARD_LIBRARIES_INIT)
   set(CMAKE_CXX_STANDARD_LIBRARIES "${CMAKE_CXX_STANDARD_LIBRARIES_INIT}"
@@ -288,11 +266,7 @@ endif()
 
 mark_as_advanced(
 CMAKE_VERBOSE_MAKEFILE
-CMAKE_CXX_FLAGS
-CMAKE_CXX_FLAGS_RELEASE
-CMAKE_CXX_FLAGS_RELWITHDEBINFO
-CMAKE_CXX_FLAGS_MINSIZEREL
-CMAKE_CXX_FLAGS_DEBUG)
+)
 
 set(CMAKE_CXX_INFORMATION_LOADED 1)
 

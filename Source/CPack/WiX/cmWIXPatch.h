@@ -1,20 +1,10 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2014 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmWIXPatch_h
 #define cmWIXPatch_h
 
-#include "cmWIXSourceWriter.h"
 #include "cmWIXPatchParser.h"
+#include "cmWIXSourceWriter.h"
 
 #include <string>
 
@@ -26,7 +16,7 @@ class cmWIXPatch
 public:
   cmWIXPatch(cmCPackLog* logger);
 
-  void LoadFragments(std::string const& patchFilePath);
+  bool LoadFragments(std::string const& patchFilePath);
 
   void ApplyFragment(std::string const& id, cmWIXSourceWriter& writer);
 
@@ -34,15 +24,14 @@ public:
 
 private:
   void ApplyElementChildren(const cmWIXPatchElement& element,
-    cmWIXSourceWriter& writer);
+                            cmWIXSourceWriter& writer);
 
   void ApplyElement(const cmWIXPatchElement& element,
-    cmWIXSourceWriter& writer);
+                    cmWIXSourceWriter& writer);
 
   cmCPackLog* Logger;
 
   cmWIXPatchParser::fragment_map_t Fragments;
 };
-
 
 #endif

@@ -29,6 +29,7 @@ Reference Manuals
    /manual/cmake-commands.7
    /manual/cmake-compile-features.7
    /manual/cmake-developer.7
+   /manual/cmake-env-variables.7
    /manual/cmake-generator-expressions.7
    /manual/cmake-generators.7
    /manual/cmake-language.7
@@ -37,8 +38,10 @@ Reference Manuals
    /manual/cmake-policies.7
    /manual/cmake-properties.7
    /manual/cmake-qt.7
+   /manual/cmake-server.7
    /manual/cmake-toolchains.7
    /manual/cmake-variables.7
+   /manual/cpack-generators.7
 
 .. only:: html or text
 

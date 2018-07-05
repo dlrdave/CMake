@@ -1,46 +1,56 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2004-2015 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmLinkItem_h
 #define cmLinkItem_h
 
+#include "cmConfigure.h" // IWYU pragma: keep
+
+#include <algorithm>
+#include <map>
+#include <string>
+#include <vector>
+
 #include "cmListFileCache.h"
 #include "cmSystemTools.h"
+#include "cmTargetLinkLibraryType.h"
 
 class cmGeneratorTarget;
 
 // Basic information about each link item.
-class cmLinkItem: public std::string
+class cmLinkItem : public std::string
 {
   typedef std::string std_string;
+
 public:
-  cmLinkItem(): std_string(), Target(0) {}
-  cmLinkItem(const std_string& n,
-             cmGeneratorTarget const* t): std_string(n), Target(t) {}
-  cmLinkItem(cmLinkItem const& r): std_string(r), Target(r.Target) {}
+  cmLinkItem()
+    : std_string()
+    , Target(nullptr)
+  {
+  }
+  cmLinkItem(const std_string& n, cmGeneratorTarget const* t)
+    : std_string(n)
+    , Target(t)
+  {
+  }
   cmGeneratorTarget const* Target;
 };
 
-class cmLinkImplItem: public cmLinkItem
+class cmLinkImplItem : public cmLinkItem
 {
 public:
-  cmLinkImplItem(): cmLinkItem(), Backtrace(), FromGenex(false) {}
-  cmLinkImplItem(std::string const& n,
-                 cmGeneratorTarget const* t,
-                 cmListFileBacktrace const& bt,
-                 bool fromGenex):
-    cmLinkItem(n, t), Backtrace(bt), FromGenex(fromGenex) {}
-  cmLinkImplItem(cmLinkImplItem const& r):
-    cmLinkItem(r), Backtrace(r.Backtrace), FromGenex(r.FromGenex) {}
+  cmLinkImplItem()
+    : cmLinkItem()
+    , Backtrace()
+    , FromGenex(false)
+  {
+  }
+  cmLinkImplItem(std::string const& n, cmGeneratorTarget const* t,
+                 cmListFileBacktrace const& bt, bool fromGenex)
+    : cmLinkItem(n, t)
+    , Backtrace(bt)
+    , FromGenex(fromGenex)
+  {
+  }
   cmListFileBacktrace Backtrace;
   bool FromGenex;
 };
@@ -63,7 +73,7 @@ struct cmLinkInterfaceLibraries
   std::vector<cmLinkItem> Libraries;
 };
 
-struct cmLinkInterface: public cmLinkInterfaceLibraries
+struct cmLinkInterface : public cmLinkInterfaceLibraries
 {
   // Languages whose runtime libraries must be linked.
   std::vector<std::string> Languages;
@@ -73,7 +83,7 @@ struct cmLinkInterface: public cmLinkInterfaceLibraries
 
   // Number of repetitions of a strongly connected component of two
   // or more static libraries.
-  int Multiplicity;
+  unsigned int Multiplicity;
 
   // Libraries listed for other configurations.
   // Needed only for OLD behavior of CMP0003.
@@ -81,15 +91,23 @@ struct cmLinkInterface: public cmLinkInterfaceLibraries
 
   bool ImplementationIsInterface;
 
-  cmLinkInterface(): Multiplicity(0), ImplementationIsInterface(false) {}
+  cmLinkInterface()
+    : Multiplicity(0)
+    , ImplementationIsInterface(false)
+  {
+  }
 };
 
-struct cmOptionalLinkInterface: public cmLinkInterface
+struct cmOptionalLinkInterface : public cmLinkInterface
 {
-  cmOptionalLinkInterface():
-    LibrariesDone(false), AllDone(false),
-    Exists(false), HadHeadSensitiveCondition(false),
-    ExplicitLibraries(0) {}
+  cmOptionalLinkInterface()
+    : LibrariesDone(false)
+    , AllDone(false)
+    , Exists(false)
+    , HadHeadSensitiveCondition(false)
+    , ExplicitLibraries(nullptr)
+  {
+  }
   bool LibrariesDone;
   bool AllDone;
   bool Exists;
@@ -97,49 +115,48 @@ struct cmOptionalLinkInterface: public cmLinkInterface
   const char* ExplicitLibraries;
 };
 
-struct cmHeadToLinkInterfaceMap:
-    public std::map<cmGeneratorTarget const*, cmOptionalLinkInterface>
+struct cmHeadToLinkInterfaceMap
+  : public std::map<cmGeneratorTarget const*, cmOptionalLinkInterface>
 {
 };
 
-struct cmLinkImplementation: public cmLinkImplementationLibraries
+struct cmLinkImplementation : public cmLinkImplementationLibraries
 {
   // Languages whose runtime libraries must be linked.
   std::vector<std::string> Languages;
 };
 
 // Cache link implementation computation from each configuration.
-struct cmOptionalLinkImplementation: public cmLinkImplementation
+struct cmOptionalLinkImplementation : public cmLinkImplementation
 {
-  cmOptionalLinkImplementation():
-    LibrariesDone(false), LanguagesDone(false),
-    HadHeadSensitiveCondition(false) {}
+  cmOptionalLinkImplementation()
+    : LibrariesDone(false)
+    , LanguagesDone(false)
+    , HadHeadSensitiveCondition(false)
+  {
+  }
   bool LibrariesDone;
   bool LanguagesDone;
   bool HadHeadSensitiveCondition;
 };
 
 /** Compute the link type to use for the given configuration.  */
-inline cmTargetLinkLibraryType
-CMP0003_ComputeLinkType(const std::string& config,
-                        std::vector<std::string> const& debugConfigs)
+inline cmTargetLinkLibraryType CMP0003_ComputeLinkType(
+  const std::string& config, std::vector<std::string> const& debugConfigs)
 {
   // No configuration is always optimized.
-  if(config.empty())
-    {
+  if (config.empty()) {
     return OPTIMIZED_LibraryType;
-    }
+  }
 
   // Check if any entry in the list matches this configuration.
   std::string configUpper = cmSystemTools::UpperCase(config);
   if (std::find(debugConfigs.begin(), debugConfigs.end(), configUpper) !=
-      debugConfigs.end())
-    {
+      debugConfigs.end()) {
     return DEBUG_LibraryType;
-    }
+  }
   // The current configuration is not a debug configuration.
   return OPTIMIZED_LibraryType;
 }
-
 
 #endif

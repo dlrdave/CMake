@@ -1,39 +1,24 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCommandArgumentParserHelper_h
 #define cmCommandArgumentParserHelper_h
 
-#include "cmStandardIncludes.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
-#define YYSTYPE cmCommandArgumentParserHelper::ParserType
-#define YYSTYPE_IS_DECLARED
-#define YY_EXTRA_TYPE cmCommandArgumentParserHelper*
-#define YY_DECL int cmCommandArgument_yylex(YYSTYPE* yylvalp,\
-  yyscan_t yyscanner)
-
-/** \class cmCommandArgumentParserHelper
- * \brief Helper class for parsing java source files
- *
- * Finds dependencies for java file and list of outputs
- */
+#include <string>
+#include <vector>
 
 class cmMakefile;
 
 class cmCommandArgumentParserHelper
 {
+  CM_DISABLE_COPY(cmCommandArgumentParserHelper)
+
 public:
-  typedef struct {
-    char* str;
-  } ParserType;
+  struct ParserType
+  {
+    const char* str;
+  };
 
   cmCommandArgumentParserHelper();
   ~cmCommandArgumentParserHelper();
@@ -42,19 +27,19 @@ public:
 
   // For the lexer:
   void AllocateParserType(cmCommandArgumentParserHelper::ParserType* pt,
-    const char* str, int len = 0);
+                          const char* str, int len = 0);
   bool HandleEscapeSymbol(cmCommandArgumentParserHelper::ParserType* pt,
-    char symbol);
+                          char symbol);
 
   int LexInput(char* buf, int maxlen);
   void Error(const char* str);
 
   // For yacc
-  char* CombineUnions(char* in1, char* in2);
+  const char* CombineUnions(const char* in1, const char* in2);
 
-  char* ExpandSpecialVariable(const char* key, const char* var);
-  char* ExpandVariable(const char* var);
-  char* ExpandVariableForAt(const char* var);
+  const char* ExpandSpecialVariable(const char* key, const char* var);
+  const char* ExpandVariable(const char* var);
+  const char* ExpandVariableForAt(const char* var);
   void SetResult(const char* value);
 
   void SetMakefile(const cmMakefile* mf);
@@ -68,13 +53,6 @@ public:
   void SetRemoveEmpty(bool b) { this->RemoveEmpty = b; }
 
   const char* GetError() { return this->ErrorString.c_str(); }
-  char EmptyVariable[1];
-  char DCURLYVariable[3];
-  char RCURLYVariable[3];
-  char ATVariable[3];
-  char DOLLARVariable[3];
-  char LCURLYVariable[3];
-  char BSLASHVariable[3];
 
 private:
   std::string::size_type InputBufferPos;
@@ -84,7 +62,7 @@ private:
   void Print(const char* place, const char* str);
   void SafePrintMissing(const char* str, int line, int cnt);
 
-  char* AddString(const std::string& str);
+  const char* AddString(const std::string& str);
 
   void CleanupParser();
   void SetError(std::string const& msg);
@@ -105,6 +83,10 @@ private:
   bool RemoveEmpty;
 };
 
+#define YYSTYPE cmCommandArgumentParserHelper::ParserType
+#define YYSTYPE_IS_DECLARED
+#define YY_EXTRA_TYPE cmCommandArgumentParserHelper*
+#define YY_DECL                                                               \
+  int cmCommandArgument_yylex(YYSTYPE* yylvalp, yyscan_t yyscanner)
+
 #endif
-
-

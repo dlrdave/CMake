@@ -1,31 +1,34 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # FindCURL
 # --------
 #
-# Find curl
-#
 # Find the native CURL headers and libraries.
 #
-# ::
+# IMPORTED Targets
+# ^^^^^^^^^^^^^^^^
 #
-#   CURL_INCLUDE_DIRS   - where to find curl/curl.h, etc.
-#   CURL_LIBRARIES      - List of libraries when using curl.
-#   CURL_FOUND          - True if curl found.
-#   CURL_VERSION_STRING - the version of curl found (since CMake 2.8.8)
-
-#=============================================================================
-# Copyright 2006-2009 Kitware, Inc.
-# Copyright 2012 Rolf Eike Beer <eike@sf-mail.de>
+# This module defines :prop_tgt:`IMPORTED` target ``CURL::libcurl``, if
+# curl has been found.
 #
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
+# Result Variables
+# ^^^^^^^^^^^^^^^^
 #
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
+# This module defines the following variables:
+#
+# ``CURL_FOUND``
+#   True if curl found.
+#
+# ``CURL_INCLUDE_DIRS``
+#   where to find curl/curl.h, etc.
+#
+# ``CURL_LIBRARIES``
+#   List of libraries when using curl.
+#
+# ``CURL_VERSION_STRING``
+#   The version of curl found.
 
 # Look for the header file.
 find_path(CURL_INCLUDE_DIR NAMES curl/curl.h)
@@ -55,8 +58,6 @@ if(CURL_INCLUDE_DIR)
   endforeach()
 endif()
 
-# handle the QUIETLY and REQUIRED arguments and set CURL_FOUND to TRUE if
-# all listed variables are TRUE
 include(${CMAKE_CURRENT_LIST_DIR}/FindPackageHandleStandardArgs.cmake)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(CURL
                                   REQUIRED_VARS CURL_LIBRARY CURL_INCLUDE_DIR
@@ -65,4 +66,10 @@ FIND_PACKAGE_HANDLE_STANDARD_ARGS(CURL
 if(CURL_FOUND)
   set(CURL_LIBRARIES ${CURL_LIBRARY})
   set(CURL_INCLUDE_DIRS ${CURL_INCLUDE_DIR})
+
+  if(NOT TARGET CURL::libcurl)
+    add_library(CURL::libcurl UNKNOWN IMPORTED)
+    set_target_properties(CURL::libcurl PROPERTIES INTERFACE_INCLUDE_DIRECTORIES "${CURL_INCLUDE_DIRS}")
+    set_property(TARGET CURL::libcurl APPEND PROPERTY IMPORTED_LOCATION "${CURL_LIBRARY}")
+  endif()
 endif()

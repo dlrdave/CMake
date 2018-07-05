@@ -64,8 +64,9 @@ The complete Config mode command signature is::
                [PATHS path1 [path2 ... ]]
                [PATH_SUFFIXES suffix1 [suffix2 ...]]
                [NO_DEFAULT_PATH]
-               [NO_CMAKE_ENVIRONMENT_PATH]
+               [NO_PACKAGE_ROOT_PATH]
                [NO_CMAKE_PATH]
+               [NO_CMAKE_ENVIRONMENT_PATH]
                [NO_SYSTEM_ENVIRONMENT_PATH]
                [NO_CMAKE_PACKAGE_REGISTRY]
                [NO_CMAKE_BUILDS_PATH] # Deprecated; does nothing.
@@ -170,11 +171,21 @@ is acceptable the following variables are set:
 ``<package>_VERSION_COUNT``
   number of version components, 0 to 4
 
-and the corresponding package configuration file is loaded.  When
-multiple package configuration files are available whose version files
+and the corresponding package configuration file is loaded.
+When multiple package configuration files are available whose version files
 claim compatibility with the version requested it is unspecified which
-one is chosen.  No attempt is made to choose a highest or closest
-version number.
+one is chosen: unless the variable :variable:`CMAKE_FIND_PACKAGE_SORT_ORDER`
+is set no attempt is made to choose a highest or closest version number.
+
+To control the order in which ``find_package`` checks for compatibility use
+the two variables :variable:`CMAKE_FIND_PACKAGE_SORT_ORDER` and
+:variable:`CMAKE_FIND_PACKAGE_SORT_DIRECTION`.
+For instance in order to select the highest version one can set::
+
+  SET(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
+  SET(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
+
+before calling ``find_package``.
 
 Config mode provides an elaborate interface and search procedure.
 Much of the interface is provided for completeness and for use
@@ -194,13 +205,16 @@ configuration file.  The tables below show the directories searched.
 Each entry is meant for installation trees following Windows (W), UNIX
 (U), or Apple (A) conventions::
 
-  <prefix>/                                               (W)
-  <prefix>/(cmake|CMake)/                                 (W)
-  <prefix>/<name>*/                                       (W)
-  <prefix>/<name>*/(cmake|CMake)/                         (W)
-  <prefix>/(lib/<arch>|lib|share)/cmake/<name>*/          (U)
-  <prefix>/(lib/<arch>|lib|share)/<name>*/                (U)
-  <prefix>/(lib/<arch>|lib|share)/<name>*/(cmake|CMake)/  (U)
+  <prefix>/                                                       (W)
+  <prefix>/(cmake|CMake)/                                         (W)
+  <prefix>/<name>*/                                               (W)
+  <prefix>/<name>*/(cmake|CMake)/                                 (W)
+  <prefix>/(lib/<arch>|lib*|share)/cmake/<name>*/                 (U)
+  <prefix>/(lib/<arch>|lib*|share)/<name>*/                       (U)
+  <prefix>/(lib/<arch>|lib*|share)/<name>*/(cmake|CMake)/         (U)
+  <prefix>/<name>*/(lib/<arch>|lib*|share)/cmake/<name>*/         (W/U)
+  <prefix>/<name>*/(lib/<arch>|lib*|share)/<name>*/               (W/U)
+  <prefix>/<name>*/(lib/<arch>|lib*|share)/<name>*/(cmake|CMake)/ (W/U)
 
 On systems supporting OS X Frameworks and Application Bundles the
 following directories are searched for frameworks or bundles
@@ -215,10 +229,22 @@ containing a configuration file::
 
 In all cases the ``<name>`` is treated as case-insensitive and corresponds
 to any of the names specified (``<package>`` or names given by ``NAMES``).
+
 Paths with ``lib/<arch>`` are enabled if the
-:variable:`CMAKE_LIBRARY_ARCHITECTURE` variable is set.  If ``PATH_SUFFIXES``
-is specified the suffixes are appended to each (W) or (U) directory entry
-one-by-one.
+:variable:`CMAKE_LIBRARY_ARCHITECTURE` variable is set. ``lib*`` includes one
+or more of the values ``lib64``, ``lib32``, ``libx32`` or ``lib`` (searched in
+that order).
+
+* Paths with ``lib64`` are searched on 64 bit platforms if the
+  :prop_gbl:`FIND_LIBRARY_USE_LIB64_PATHS` property is set to ``TRUE``.
+* Paths with ``lib32`` are searched on 32 bit platforms if the
+  :prop_gbl:`FIND_LIBRARY_USE_LIB32_PATHS` property is set to ``TRUE``.
+* Paths with ``libx32`` are searched on platforms using the x32 ABI
+  if the :prop_gbl:`FIND_LIBRARY_USE_LIBX32_PATHS` property is set to ``TRUE``.
+* The ``lib`` path is always searched.
+
+If ``PATH_SUFFIXES`` is specified, the suffixes are appended to each
+(W) or (U) directory entry one-by-one.
 
 This set of directories is intended to work in cooperation with
 projects that provide configuration files in their installation trees.
@@ -236,16 +262,26 @@ The set of installation prefixes is constructed using the following
 steps.  If ``NO_DEFAULT_PATH`` is specified all ``NO_*`` options are
 enabled.
 
-1. Search paths specified in cmake-specific cache variables.  These
+1. Search paths specified in the ``PackageName_ROOT`` CMake and environment
+   variables.  The package root variables are maintained as a stack so if
+   called from within a find module, root paths from the parent's find
+   module will also be searched after paths for the current package.
+   This can be skipped if ``NO_PACKAGE_ROOT_PATH`` is passed.
+   See policy :policy:`CMP0074`.
+
+2. Search paths specified in cmake-specific cache variables.  These
    are intended to be used on the command line with a ``-DVAR=value``.
+   The values are interpreted as :ref:`;-lists <CMake Language Lists>`.
    This can be skipped if ``NO_CMAKE_PATH`` is passed::
 
      CMAKE_PREFIX_PATH
      CMAKE_FRAMEWORK_PATH
      CMAKE_APPBUNDLE_PATH
 
-2. Search paths specified in cmake-specific environment variables.
-   These are intended to be set in the user's shell configuration.
+3. Search paths specified in cmake-specific environment variables.
+   These are intended to be set in the user's shell configuration,
+   and therefore use the host's native path separator
+   (``;`` on Windows and ``:`` on UNIX).
    This can be skipped if ``NO_CMAKE_ENVIRONMENT_PATH`` is passed::
 
      <package>_DIR
@@ -253,26 +289,26 @@ enabled.
      CMAKE_FRAMEWORK_PATH
      CMAKE_APPBUNDLE_PATH
 
-3. Search paths specified by the ``HINTS`` option.  These should be paths
+4. Search paths specified by the ``HINTS`` option.  These should be paths
    computed by system introspection, such as a hint provided by the
    location of another item already found.  Hard-coded guesses should
    be specified with the ``PATHS`` option.
 
-4. Search the standard system environment variables.  This can be
+5. Search the standard system environment variables.  This can be
    skipped if ``NO_SYSTEM_ENVIRONMENT_PATH`` is passed.  Path entries
    ending in ``/bin`` or ``/sbin`` are automatically converted to their
    parent directories::
 
      PATH
 
-5. Search paths stored in the CMake :ref:`User Package Registry`.
+6. Search paths stored in the CMake :ref:`User Package Registry`.
    This can be skipped if ``NO_CMAKE_PACKAGE_REGISTRY`` is passed or by
    setting the :variable:`CMAKE_FIND_PACKAGE_NO_PACKAGE_REGISTRY`
    to ``TRUE``.
    See the :manual:`cmake-packages(7)` manual for details on the user
    package registry.
 
-6. Search cmake variables defined in the Platform files for the
+7. Search cmake variables defined in the Platform files for the
    current system.  This can be skipped if ``NO_CMAKE_SYSTEM_PATH`` is
    passed::
 
@@ -280,14 +316,14 @@ enabled.
      CMAKE_SYSTEM_FRAMEWORK_PATH
      CMAKE_SYSTEM_APPBUNDLE_PATH
 
-7. Search paths stored in the CMake :ref:`System Package Registry`.
+8. Search paths stored in the CMake :ref:`System Package Registry`.
    This can be skipped if ``NO_CMAKE_SYSTEM_PACKAGE_REGISTRY`` is passed
    or by setting the
    :variable:`CMAKE_FIND_PACKAGE_NO_SYSTEM_PACKAGE_REGISTRY` to ``TRUE``.
    See the :manual:`cmake-packages(7)` manual for details on the system
    package registry.
 
-8. Search paths specified by the ``PATHS`` option.  These are typically
+9. Search paths specified by the ``PATHS`` option.  These are typically
    hard-coded guesses.
 
 .. |FIND_XXX| replace:: find_package

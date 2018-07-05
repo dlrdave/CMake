@@ -1,18 +1,24 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmGlobalVisualStudioGenerator_h
 #define cmGlobalVisualStudioGenerator_h
 
+#include "cmConfigure.h" // IWYU pragma: keep
+
+#include <iosfwd>
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
+
 #include "cmGlobalGenerator.h"
+#include "cmTargetDepend.h"
+
+class cmCustomCommand;
+class cmGeneratorTarget;
+class cmLocalGenerator;
+class cmMakefile;
+class cmake;
 
 /** \class cmGlobalVisualStudioGenerator
  * \brief Base class for global Visual Studio generators.
@@ -26,16 +32,13 @@ public:
   /** Known versions of Visual Studio.  */
   enum VSVersion
   {
-    VS6 = 60,
-    VS7 = 70,
-    VS71 = 71,
-    VS8 = 80,
     VS9 = 90,
     VS10 = 100,
     VS11 = 110,
     VS12 = 120,
     /* VS13 = 130 was skipped */
-    VS14 = 140
+    VS14 = 140,
+    VS15 = 150
   };
 
   cmGlobalVisualStudioGenerator(cmake* cm);
@@ -63,17 +66,20 @@ public:
    */
   virtual std::string GetUserMacrosRegKeyBase();
 
-  enum MacroName {MacroReload, MacroStop};
+  enum MacroName
+  {
+    MacroReload,
+    MacroStop
+  };
 
   /**
    * Call the ReloadProjects macro if necessary based on
    * GetFilesReplacedDuringGenerate results.
    */
-  void CallVisualStudioMacro(MacroName m,
-                             const char* vsSolutionFile = 0);
+  void CallVisualStudioMacro(MacroName m, const char* vsSolutionFile = 0);
 
   // return true if target is fortran only
-  bool TargetIsFortranOnly(const cmGeneratorTarget *gt);
+  bool TargetIsFortranOnly(const cmGeneratorTarget* gt);
 
   /** Get the top-level registry key for this VS version.  */
   std::string GetRegistryBase();
@@ -83,35 +89,48 @@ public:
 
   /** Return true if the generated build tree may contain multiple builds.
       i.e. "Can I build Debug and Release in the same tree?" */
-  virtual bool IsMultiConfig() { return true; }
+  bool IsMultiConfig() const override { return true; }
 
   /** Return true if building for Windows CE */
   virtual bool TargetsWindowsCE() const { return false; }
 
-  class TargetSet: public std::set<cmGeneratorTarget const*> {};
+  bool IsIncludeExternalMSProjectSupported() const override { return true; }
+
+  class TargetSet : public std::set<cmGeneratorTarget const*>
+  {
+  };
   class TargetCompare
   {
     std::string First;
+
   public:
-    TargetCompare(std::string const& first): First(first) {}
+    TargetCompare(std::string const& first)
+      : First(first)
+    {
+    }
     bool operator()(cmGeneratorTarget const* l,
                     cmGeneratorTarget const* r) const;
   };
   class OrderedTargetDependSet;
 
-  virtual void FindMakeProgram(cmMakefile*);
+  bool FindMakeProgram(cmMakefile*) override;
 
-
-  virtual std::string ExpandCFGIntDir(const std::string& str,
-                                      const std::string& config) const;
+  std::string ExpandCFGIntDir(const std::string& str,
+                              const std::string& config) const override;
 
   void ComputeTargetObjectDirectory(cmGeneratorTarget* gt) const;
 
-  void AddSymbolExportCommand(
-    cmGeneratorTarget*, std::vector<cmCustomCommand>& commands,
-    std::string const& configName);
+  std::string GetStartupProjectName(cmLocalGenerator const* root) const;
+
+  void AddSymbolExportCommand(cmGeneratorTarget*,
+                              std::vector<cmCustomCommand>& commands,
+                              std::string const& configName);
+
+  bool Open(const std::string& bindir, const std::string& projectName,
+            bool dryRun) override;
+
 protected:
-  virtual void AddExtraIDETargets();
+  void AddExtraIDETargets() override;
 
   // Does this VS version link targets to each other if there are
   // dependencies in the SLN file?  This was done for VS versions
@@ -120,17 +139,21 @@ protected:
 
   virtual const char* GetIDEVersion() = 0;
 
-  virtual bool ComputeTargetDepends();
-  class VSDependSet: public std::set<std::string> {};
-  class VSDependMap: public std::map<cmGeneratorTarget const*, VSDependSet> {};
+  bool ComputeTargetDepends() override;
+  class VSDependSet : public std::set<std::string>
+  {
+  };
+  class VSDependMap : public std::map<cmGeneratorTarget const*, VSDependSet>
+  {
+  };
   VSDependMap VSTargetDepends;
-  void ComputeVSTargetDepends(cmGeneratorTarget *);
+  void ComputeVSTargetDepends(cmGeneratorTarget*);
 
   bool CheckTargetLinks(cmGeneratorTarget& target, const std::string& name);
   std::string GetUtilityForTarget(cmGeneratorTarget& target,
                                   const std::string&);
   virtual std::string WriteUtilityDepend(cmGeneratorTarget const*) = 0;
-  std::string GetUtilityDepend(const cmGeneratorTarget *target);
+  std::string GetUtilityDepend(const cmGeneratorTarget* target);
   typedef std::map<cmGeneratorTarget const*, std::string> UtilityDependsMap;
   UtilityDependsMap UtilityDepends;
 
@@ -140,25 +163,29 @@ protected:
 private:
   virtual std::string GetVSMakeProgram() = 0;
   void PrintCompilerAdvice(std::ostream&, std::string const&,
-                           const char*) const {}
+                           const char*) const
+  {
+  }
 
   void FollowLinkDepends(cmGeneratorTarget const* target,
                          std::set<cmGeneratorTarget const*>& linked);
 
-  class TargetSetMap: public std::map<cmGeneratorTarget*, TargetSet> {};
+  class TargetSetMap : public std::map<cmGeneratorTarget*, TargetSet>
+  {
+  };
   TargetSetMap TargetLinkClosure;
-  void FillLinkClosure(const cmGeneratorTarget *target,
-                       TargetSet& linked);
+  void FillLinkClosure(const cmGeneratorTarget* target, TargetSet& linked);
   TargetSet const& GetTargetLinkClosure(cmGeneratorTarget* target);
 };
 
-class cmGlobalVisualStudioGenerator::OrderedTargetDependSet:
-  public std::multiset<cmTargetDepend,
-                       cmGlobalVisualStudioGenerator::TargetCompare>
+class cmGlobalVisualStudioGenerator::OrderedTargetDependSet
+  : public std::multiset<cmTargetDepend,
+                         cmGlobalVisualStudioGenerator::TargetCompare>
 {
   typedef std::multiset<cmTargetDepend,
                         cmGlobalVisualStudioGenerator::TargetCompare>
     derived;
+
 public:
   typedef cmGlobalGenerator::TargetDependSet TargetDependSet;
   typedef cmGlobalVisualStudioGenerator::TargetSet TargetSet;

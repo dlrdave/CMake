@@ -51,10 +51,16 @@ Available logical expressions are:
   ``0`` if all ``?`` are ``0``, else ``1``
 ``$<NOT:?>``
   ``0`` if ``?`` is ``1``, else ``1``
+``$<IF:?,true-value...,false-value...>```
+  ``true-value...`` if ``?`` is ``1``, ``false-value...`` if ``?`` is ``0``
 ``$<STREQUAL:a,b>``
   ``1`` if ``a`` is STREQUAL ``b``, else ``0``
 ``$<EQUAL:a,b>``
   ``1`` if ``a`` is EQUAL ``b`` in a numeric comparison, else ``0``
+``$<IN_LIST:a,b>``
+  ``1`` if ``a`` is IN_LIST ``b``, else ``0``
+``$<TARGET_EXISTS:tgt>``
+  ``1`` if ``tgt`` is an existed target name, else ``0``.
 ``$<CONFIG:cfg>``
   ``1`` if config is ``cfg``, else ``0``. This is a case-insensitive comparison.
   The mapping in :prop_tgt:`MAP_IMPORTED_CONFIG_<CONFIG>` is also considered by
@@ -66,12 +72,16 @@ Available logical expressions are:
   ``1`` if the CMake-id of the C compiler matches ``comp``, otherwise ``0``.
 ``$<CXX_COMPILER_ID:comp>``
   ``1`` if the CMake-id of the CXX compiler matches ``comp``, otherwise ``0``.
-``$<VERSION_GREATER:v1,v2>``
-  ``1`` if ``v1`` is a version greater than ``v2``, else ``0``.
 ``$<VERSION_LESS:v1,v2>``
   ``1`` if ``v1`` is a version less than ``v2``, else ``0``.
+``$<VERSION_GREATER:v1,v2>``
+  ``1`` if ``v1`` is a version greater than ``v2``, else ``0``.
 ``$<VERSION_EQUAL:v1,v2>``
   ``1`` if ``v1`` is the same version as ``v2``, else ``0``.
+``$<VERSION_LESS_EQUAL:v1,v2>``
+  ``1`` if ``v1`` is a version less than or equal to ``v2``, else ``0``.
+``$<VERSION_GREATER_EQUAL:v1,v2>``
+  ``1`` if ``v1`` is a version greater than or equal to ``v2``, else ``0``.
 ``$<C_COMPILER_VERSION:ver>``
   ``1`` if the version of the C compiler matches ``ver``, otherwise ``0``.
 ``$<CXX_COMPILER_VERSION:ver>``
@@ -91,44 +101,46 @@ Available logical expressions are:
   compile features and a list of supported compilers.
 ``$<COMPILE_LANGUAGE:lang>``
   ``1`` when the language used for compilation unit matches ``lang``,
-  otherwise ``0``.  This expression used to specify compile options for
-  source files of a particular language in a target. For example, to specify
-  the use of the ``-fno-exceptions`` compile option (compiler id checks
-  elided):
+  otherwise ``0``.  This expression may be used to specify compile options,
+  compile definitions, and include directories for source files of a
+  particular language in a target. For example:
 
   .. code-block:: cmake
 
-    add_executable(myapp main.cpp foo.c bar.cpp)
+    add_executable(myapp main.cpp foo.c bar.cpp zot.cu)
     target_compile_options(myapp
       PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fno-exceptions>
     )
-
-  This generator expression has limited use because it is not possible to
-  use it with the Visual Studio generators.  Portable buildsystems would
-  not use this expression, and would create separate libraries for each
-  source file language instead:
-
-  .. code-block:: cmake
-
-    add_library(myapp_c foo.c)
-    add_library(myapp_cxx foo.c)
-    target_compile_options(myapp_cxx PUBLIC -fno-exceptions)
-    add_executable(myapp main.cpp)
-    target_link_libraries(myapp myapp_c myapp_cxx)
-
-  The ``Makefile`` and ``Ninja`` based generators can also use this
-  expression to specify compile-language specific compile definitions
-  and include directories:
-
-  .. code-block:: cmake
-
-    add_executable(myapp main.cpp foo.c bar.cpp)
     target_compile_definitions(myapp
       PRIVATE $<$<COMPILE_LANGUAGE:CXX>:COMPILING_CXX>
+              $<$<COMPILE_LANGUAGE:CUDA>:COMPILING_CUDA>
     )
     target_include_directories(myapp
       PRIVATE $<$<COMPILE_LANGUAGE:CXX>:/opt/foo/cxx_headers>
     )
+
+  This specifies the use of the ``-fno-exceptions`` compile option,
+  ``COMPILING_CXX`` compile definition, and ``cxx_headers`` include
+  directory for C++ only (compiler id checks elided).  It also specifies
+  a ``COMPILING_CUDA`` compile definition for CUDA.
+
+  Note that with :ref:`Visual Studio Generators` and :generator:`Xcode` there
+  is no way to represent target-wide compile definitions or include directories
+  separately for ``C`` and ``CXX`` languages.
+  Also, with :ref:`Visual Studio Generators` there is no way to represent
+  target-wide flags separately for ``C`` and ``CXX`` languages.  Under these
+  generators, expressions for both C and C++ sources will be evaluated
+  using ``CXX`` if there are any C++ sources and otherwise using ``C``.
+  A workaround is to create separate libraries for each source file language
+  instead:
+
+  .. code-block:: cmake
+
+    add_library(myapp_c foo.c)
+    add_library(myapp_cxx bar.cpp)
+    target_compile_options(myapp_cxx PUBLIC -fno-exceptions)
+    add_executable(myapp main.cpp)
+    target_link_libraries(myapp myapp_c myapp_cxx)
 
 Informational Expressions
 =========================
@@ -199,6 +211,15 @@ Available informational expressions are:
   Name of the linker generated program database file (.pdb).
 ``$<TARGET_PDB_FILE_DIR:tgt>``
   Directory of the linker generated program database file (.pdb).
+``$<TARGET_BUNDLE_DIR:tgt>``
+  Full path to the bundle directory (``my.app``, ``my.framework``, or
+  ``my.bundle``) where ``tgt`` is the name of a target.
+``$<TARGET_BUNDLE_CONTENT_DIR:tgt>``
+  Full path to the bundle content directory where ``tgt`` is the name of a
+  target. For the macOS SDK it leads to ``my.app/Contents``, ``my.framework``,
+  or ``my.bundle/Contents``. For all other SDKs (e.g. iOS) it leads to
+  ``my.app``, ``my.framework``, or ``my.bundle`` due to the flat bundle
+  structure.
 ``$<TARGET_PROPERTY:tgt,prop>``
   Value of the property ``prop`` on the target ``tgt``.
 
@@ -225,7 +246,7 @@ comparison::
   -I$<JOIN:$<TARGET_PROPERTY:INCLUDE_DIRECTORIES>, -I>
 
 generates a string of the entries in the :prop_tgt:`INCLUDE_DIRECTORIES` target
-property with each entry preceeded by ``-I``. Note that a more-complete use
+property with each entry preceded by ``-I``. Note that a more-complete use
 in this situation would require first checking if the INCLUDE_DIRECTORIES
 property is non-empty::
 
@@ -253,6 +274,9 @@ Available output expressions are:
   Marks ``...`` as being the name of a target.  This is required if exporting
   targets to multiple dependent export sets.  The ``...`` must be a literal
   name of a target- it may not contain generator expressions.
+``$<TARGET_NAME_IF_EXISTS:...>``
+  Expands to the ``...`` if the given target exists, an empty string
+  otherwise.
 ``$<LINK_ONLY:...>``
   Content of ``...`` except when evaluated in a link interface while
   propagating :ref:`Target Usage Requirements`, in which case it is the
@@ -272,13 +296,51 @@ Available output expressions are:
 ``$<UPPER_CASE:...>``
   Content of ``...`` converted to upper case.
 ``$<MAKE_C_IDENTIFIER:...>``
-  Content of ``...`` converted to a C identifier.
+  Content of ``...`` converted to a C identifier.  The conversion follows the
+  same behavior as :command:`string(MAKE_C_IDENTIFIER)`.
 ``$<TARGET_OBJECTS:objLib>``
   List of objects resulting from build of ``objLib``. ``objLib`` must be an
-  object of type ``OBJECT_LIBRARY``.  This expression may only be used in
-  the sources of :command:`add_library` and :command:`add_executable`
-  commands.
+  object of type ``OBJECT_LIBRARY``.
 ``$<SHELL_PATH:...>``
   Content of ``...`` converted to shell path style. For example, slashes are
   converted to backslashes in Windows shells and drive letters are converted
   to posix paths in MSYS shells. The ``...`` must be an absolute path.
+``$<GENEX_EVAL:...>``
+  Content of ``...`` evaluated as a generator expression in the current
+  context. This enables consumption of generator expressions
+  whose evaluation results itself in generator expressions.
+``$<TARGET_GENEX_EVAL:tgt,...>``
+  Content of ``...`` evaluated as a generator expression in the context of
+  ``tgt`` target. This enables consumption of custom target properties that
+  themselves contain generator expressions.
+
+  Having the capability to evaluate generator expressions is very useful when
+  you want to manage custom properties supporting generator expressions.
+  For example:
+
+  .. code-block:: cmake
+
+    add_library(foo ...)
+
+    set_property(TARGET foo PROPERTY
+      CUSTOM_KEYS $<$<CONFIG:DEBUG>:FOO_EXTRA_THINGS>
+    )
+
+    add_custom_target(printFooKeys
+      COMMAND ${CMAKE_COMMAND} -E echo $<TARGET_PROPERTY:foo,CUSTOM_KEYS>
+    )
+
+  This naive implementation of the ``printFooKeys`` custom command is wrong
+  because ``CUSTOM_KEYS`` target property is not evaluated and the content
+  is passed as is (i.e. ``$<$<CONFIG:DEBUG>:FOO_EXTRA_THINGS>``).
+
+  To have the expected result (i.e. ``FOO_EXTRA_THINGS`` if config is
+  ``Debug``), it is required to evaluate the output of
+  ``$<TARGET_PROPERTY:foo,CUSTOM_KEYS>``:
+
+  .. code-block:: cmake
+
+    add_custom_target(printFooKeys
+      COMMAND ${CMAKE_COMMAND} -E
+        echo $<TARGET_GENEX_EVAL:foo,$<TARGET_PROPERTY:foo,CUSTOM_KEYS>>
+    )

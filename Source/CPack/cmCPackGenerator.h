@@ -1,68 +1,50 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCPackGenerator_h
 #define cmCPackGenerator_h
 
-#include "cmObject.h"
-#include "cmSystemTools.h"
+#include "cmConfigure.h" // IWYU pragma: keep
+
 #include <map>
+#include <sstream>
+#include <string>
 #include <vector>
 
-#include "cmCPackComponentGroup.h" // cmCPackComponent and friends
-  // Forward declarations are insufficient since we use them in
-  // std::map data members below...
+#include "cmCPackComponentGroup.h"
+#include "cmSystemTools.h"
+#include "cm_sys_stat.h"
 
-#define cmCPackTypeMacro(klass, superclass) \
-  cmTypeMacro(klass, superclass); \
-  static cmCPackGenerator* CreateGenerator() { return new klass; } \
-  class cmCPackTypeMacro_UseTrailingSemicolon
-
-#define cmCPackLogger(logType, msg) \
-  do { \
-    std::ostringstream cmCPackLog_msg; \
-    cmCPackLog_msg << msg; \
-    this->Logger->Log(logType, __FILE__, __LINE__,\
-                      cmCPackLog_msg.str().c_str());\
-  } while ( 0 )
-
-#ifdef cerr
-#  undef cerr
-#endif
-#define cerr no_cerr_use_cmCPack_Log
-
-#ifdef cout
-#  undef cout
-#endif
-#define cout no_cout_use_cmCPack_Log
-
-class cmMakefile;
 class cmCPackLog;
+class cmGlobalGenerator;
 class cmInstalledFile;
+class cmMakefile;
 
 /** \class cmCPackGenerator
  * \brief A superclass of all CPack Generators
  *
  */
-class cmCPackGenerator : public cmObject
+class cmCPackGenerator
 {
 public:
-  cmTypeMacro(cmCPackGenerator, cmObject);
+  virtual const char* GetNameOfClass() = 0;
   /**
    * If verbose then more information is printed out
    */
   void SetVerbose(bool val)
-    { this->GeneratorVerbose = val ?
-      cmSystemTools::OUTPUT_MERGE : cmSystemTools::OUTPUT_NONE; }
+  {
+    this->GeneratorVerbose =
+      val ? cmSystemTools::OUTPUT_MERGE : cmSystemTools::OUTPUT_NONE;
+  }
+
+  /**
+   * Put underlying cmake scripts in trace mode.
+   */
+  void SetTrace(bool val) { this->Trace = val; }
+
+  /**
+   * Put underlying cmake scripts in expanded trace mode.
+   */
+  void SetTraceExpand(bool val) { this->TraceExpand = val; }
 
   /**
    * Returns true if the generator may work on this system.
@@ -107,6 +89,8 @@ public:
   std::vector<std::string> GetOptions() const;
   bool IsSet(const std::string& name) const;
   bool IsOn(const std::string& name) const;
+  bool IsSetToOff(const std::string& op) const;
+  bool IsSetToEmpty(const std::string& op) const;
 
   //! Set the logger
   void SetLogger(cmCPackLog* log) { this->Logger = log; }
@@ -133,7 +117,7 @@ protected:
   cmInstalledFile const* GetInstalledFile(std::string const& name) const;
 
   virtual const char* GetOutputExtension() { return ".cpack"; }
-  virtual const char* GetOutputPostfix() { return 0; }
+  virtual const char* GetOutputPostfix() { return nullptr; }
 
   /**
    * Prepare requested grouping kind from CPACK_xxx vars
@@ -156,7 +140,7 @@ protected:
    *         default is "componentName"
    */
   virtual std::string GetComponentInstallDirNameSuffix(
-      const std::string& componentName);
+    const std::string& componentName);
 
   /**
    * CPack specific generator may mangle CPACK_PACKAGE_FILE_NAME
@@ -168,9 +152,8 @@ protected:
    *            false otherwise
    */
   virtual std::string GetComponentPackageFileName(
-      const std::string& initialPackageFileName,
-      const std::string& groupOrComponentName,
-      bool isGroupName);
+    const std::string& initialPackageFileName,
+    const std::string& groupOrComponentName, bool isGroupName);
 
   /**
    * Package the list of files and/or components which
@@ -187,10 +170,9 @@ protected:
 
   virtual std::string FindTemplate(const char* name);
   virtual bool ConfigureFile(const char* inName, const char* outName,
-    bool copyOnly = false);
+                             bool copyOnly = false);
   virtual bool ConfigureString(const std::string& input, std::string& output);
   virtual int InitializeInternal();
-
 
   //! Run install commands if specified
   virtual int InstallProjectViaInstallCommands(
@@ -198,15 +180,29 @@ protected:
   virtual int InstallProjectViaInstallScript(
     bool setDestDir, const std::string& tempInstallDirectory);
   virtual int InstallProjectViaInstalledDirectories(
-    bool setDestDir, const std::string& tempInstallDirectory);
+    bool setDestDir, const std::string& tempInstallDirectory,
+    const mode_t* default_dir_mode);
   virtual int InstallProjectViaInstallCMakeProjects(
-    bool setDestDir, const std::string& tempInstallDirectory);
+    bool setDestDir, const std::string& tempInstallDirectory,
+    const mode_t* default_dir_mode);
+
+  virtual int RunPreinstallTarget(const std::string& installProjectName,
+                                  const std::string& installDirectory,
+                                  cmGlobalGenerator* globalGenerator,
+                                  const std::string& buildConfig);
+  virtual int InstallCMakeProject(
+    bool setDestDir, const std::string& installDirectory,
+    const std::string& baseTempInstallDirectory,
+    const mode_t* default_dir_mode, const std::string& component,
+    bool componentInstall, const std::string& installSubDirectory,
+    const std::string& buildConfig, std::string& absoluteDestFiles);
 
   /**
    * The various level of support of
    * CPACK_SET_DESTDIR used by the generator.
    */
-  enum CPackSetDestdirSupport {
+  enum CPackSetDestdirSupport
+  {
     /* the generator works with or without it */
     SETDESTDIR_SUPPORTED,
     /* the generator works best if automatically handled */
@@ -250,13 +246,11 @@ protected:
    */
   virtual bool WantsComponentInstallation() const;
   virtual cmCPackInstallationType* GetInstallationType(
-                                                const std::string& projectName,
-                                                const std::string& name);
+    const std::string& projectName, const std::string& name);
   virtual cmCPackComponent* GetComponent(const std::string& projectName,
                                          const std::string& name);
   virtual cmCPackComponentGroup* GetComponentGroup(
-                                                const std::string& projectName,
-                                                const std::string& name);
+    const std::string& projectName, const std::string& name);
 
   cmSystemTools::OutputOption GeneratorVerbose;
   std::string Name;
@@ -289,6 +283,7 @@ protected:
    */
   std::vector<std::string> files;
 
+  std::vector<cmCPackInstallCMakeProject> CMakeProjects;
   std::map<std::string, cmCPackInstallationType> InstallationTypes;
   /**
    * The set of components.
@@ -323,8 +318,25 @@ protected:
   ComponentPackageMethod componentPackageMethod;
 
   cmCPackLog* Logger;
+  bool Trace;
+  bool TraceExpand;
+
 private:
   cmMakefile* MakefileMap;
 };
+
+#define cmCPackTypeMacro(klass, superclass)                                   \
+  typedef superclass Superclass;                                              \
+  const char* GetNameOfClass() override { return #klass; }                    \
+  static cmCPackGenerator* CreateGenerator() { return new klass; }            \
+  class cmCPackTypeMacro_UseTrailingSemicolon
+
+#define cmCPackLogger(logType, msg)                                           \
+  do {                                                                        \
+    std::ostringstream cmCPackLog_msg;                                        \
+    cmCPackLog_msg << msg;                                                    \
+    this->Logger->Log(logType, __FILE__, __LINE__,                            \
+                      cmCPackLog_msg.str().c_str());                          \
+  } while (false)
 
 #endif

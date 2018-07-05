@@ -5,14 +5,19 @@ set(CASE_DROP_METHOD "http")
 set(CASE_DROP_SITE "-no-site-")
 set(CASE_CTEST_SUBMIT_ARGS "")
 
-#-----------------------------------------------------------------------------
-# Test bad argument combinations.
 
 function(run_ctest_submit CASE_NAME)
   set(CASE_CTEST_SUBMIT_ARGS "${ARGN}")
   run_ctest(${CASE_NAME})
 endfunction()
 
+function(run_ctest_submit_debug CASE_NAME)
+  set(CASE_CTEST_SUBMIT_ARGS "${ARGN}")
+  run_ctest(${CASE_NAME} "--debug")
+endfunction()
+
+#-----------------------------------------------------------------------------
+# Test bad argument combinations.
 run_ctest_submit(BadArg bad-arg)
 run_ctest_submit(BadPARTS PARTS bad-part)
 run_ctest_submit(BadFILES FILES bad-file)
@@ -21,10 +26,12 @@ run_ctest_submit(PARTSCDashUpload PARTS Configure CDASH_UPLOAD)
 run_ctest_submit(PARTSCDashUploadType PARTS Configure CDASH_UPLOAD_TYPE)
 run_ctest_submit(CDashUploadPARTS CDASH_UPLOAD bad-upload PARTS)
 run_ctest_submit(CDashUploadFILES CDASH_UPLOAD bad-upload FILES)
-run_ctest_submit(CDashUploadRETRY_COUNT CDASH_UPLOAD bad-upload RETRY_COUNT)
-run_ctest_submit(CDashUploadRETRY_DELAY CDASH_UPLOAD bad-upload RETRY_DELAY)
 run_ctest_submit(CDashUploadNone CDASH_UPLOAD)
+run_ctest_submit(CDashUploadMissingFile CDASH_UPLOAD bad-upload)
+run_ctest_submit(CDashUploadRetry CDASH_UPLOAD ${CMAKE_CURRENT_LIST_FILE} CDASH_UPLOAD_TYPE foo RETRY_COUNT 2 RETRY_DELAY 1 INTERNAL_TEST_CHECKSUM)
 run_ctest_submit(CDashSubmitQuiet QUIET)
+run_ctest_submit_debug(CDashSubmitHeaders HTTPHEADER "Authorization: Bearer asdf")
+run_ctest_submit_debug(CDashUploadHeaders CDASH_UPLOAD ${CMAKE_CURRENT_LIST_FILE} CDASH_UPLOAD_TYPE foo HTTPHEADER "Authorization: Bearer asdf")
 
 function(run_ctest_CDashUploadFTP)
   set(CASE_DROP_METHOD ftp)

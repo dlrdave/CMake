@@ -1,16 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2002-2011 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 # This module is shared by multiple languages; use include blocker.
 if(__COMPILER_SCO)
@@ -25,4 +15,7 @@ macro(__compiler_sco lang)
   set(CMAKE_${lang}_COMPILE_OPTIONS_DLL -belf)
   set(CMAKE_SHARED_LIBRARY_${lang}_FLAGS "-Kpic -belf")
   set(CMAKE_SHARED_LIBRARY_CREATE_${lang}_FLAGS "-belf -Wl,-Bexport")
+
+  set(CMAKE_${lang}_LINKER_WRAPPER_FLAG "-Wl,")
+  set(CMAKE_${lang}_LINKER_WRAPPER_FLAG_SEP ",")
 endmacro()

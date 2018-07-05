@@ -1,24 +1,14 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2015 Geoffrey Viola <geoffrey.viola@asirobots.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGhsMultiGpj.h"
 
 #include "cmGeneratedFileStream.h"
 
 void GhsMultiGpj::WriteGpjTag(Types const gpjType,
-                              cmGeneratedFileStream *const filestream)
+                              cmGeneratedFileStream* const filestream)
 {
-  char const *tag;
-  switch (gpjType)
-    {
+  char const* tag;
+  switch (gpjType) {
     case INTERGRITY_APPLICATION:
       tag = "INTEGRITY Application";
       break;
@@ -39,6 +29,6 @@ void GhsMultiGpj::WriteGpjTag(Types const gpjType,
       break;
     default:
       tag = "";
-    }
+  }
   *filestream << "[" << tag << "]" << std::endl;
 }

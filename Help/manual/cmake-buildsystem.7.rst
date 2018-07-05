@@ -113,9 +113,9 @@ and it uniquely identifies the bundle.
 Object Libraries
 ^^^^^^^^^^^^^^^^
 
-The ``OBJECT`` library type is also not linked to. It defines a non-archival
-collection of object files resulting from compiling the given source files.
-The object files collection can be used as source inputs to other targets:
+The ``OBJECT`` library type defines a non-archival collection of object files
+resulting from compiling the given source files.  The object files collection
+may be used as source inputs to other targets:
 
 .. code-block:: cmake
 
@@ -125,16 +125,31 @@ The object files collection can be used as source inputs to other targets:
 
   add_executable(test_exe $<TARGET_OBJECTS:archive> test.cpp)
 
-``OBJECT`` libraries may only be used locally as sources in a buildsystem --
-they may not be installed, exported, or used in the right hand side of
-:command:`target_link_libraries`.  They also may not be used as the ``TARGET``
-in a use of the :command:`add_custom_command(TARGET)` command signature.
+The link (or archiving) step of those other targets will use the object
+files collection in addition to those from their own sources.
 
-Although object libraries may not be named directly in calls to
-the :command:`target_link_libraries` command, they can be "linked"
-indirectly by using an :ref:`Interface Library <Interface Libraries>`
-whose :prop_tgt:`INTERFACE_SOURCES` target property is set to name
-``$<TARGET_OBJECTS:objlib>``.
+Alternatively, object libraries may be linked into other targets:
+
+.. code-block:: cmake
+
+  add_library(archive OBJECT archive.cpp zip.cpp lzma.cpp)
+
+  add_library(archiveExtras STATIC extras.cpp)
+  target_link_libraries(archiveExtras PUBLIC archive)
+
+  add_executable(test_exe test.cpp)
+  target_link_libraries(test_exe archive)
+
+The link (or archiving) step of those other targets will use the object
+files from object libraries that are *directly* linked.  Additionally,
+usage requirements of the object libraries will be honored when compiling
+sources in those other targets.  Furthermore, those usage requirements
+will propagate transitively to dependents of those other targets.
+
+Object libraries may not be used as the ``TARGET`` in a use of the
+:command:`add_custom_command(TARGET)` command signature.  However,
+the list of objects can be used by :command:`add_custom_command(OUTPUT)`
+or :command:`file(GENERATE)` by using ``$<TARGET_OBJECTS:objlib>``.
 
 Build Specification and Usage Requirements
 ==========================================
@@ -150,7 +165,7 @@ and :prop_tgt:`INTERFACE_COMPILE_OPTIONS` target properties.
 Each of the commands has a ``PRIVATE``, ``PUBLIC`` and ``INTERFACE`` mode.  The
 ``PRIVATE`` mode populates only the non-``INTERFACE_`` variant of the target
 property and the ``INTERFACE`` mode populates only the ``INTERFACE_`` variants.
-The ``PUBLIC`` mode populates both variants of the repective target property.
+The ``PUBLIC`` mode populates both variants of the respective target property.
 Each command may be invoked with multiple uses of each keyword:
 
 .. code-block:: cmake
@@ -260,7 +275,7 @@ The :command:`target_link_libraries` command has ``PRIVATE``,
 
 Because ``archive`` is a ``PUBLIC`` dependency of ``archiveExtras``, the
 usage requirements of it are propagated to ``consumer`` too.  Because
-``serialization`` is a ``PRIVATE`` dependency of ``archive``, the usage
+``serialization`` is a ``PRIVATE`` dependency of ``archiveExtras``, the usage
 requirements of it are not propagated to ``consumer``.
 
 Generally, a dependency should be specified in a use of
@@ -427,7 +442,7 @@ specified will be calculated:
   )
 
   add_library(lib1Version3 SHARED lib1_v3.cpp)
-  set_property(TARGET lib1Version2 PROPERTY INTERFACE_CONTAINER_SIZE_REQUIRED 1000)
+  set_property(TARGET lib1Version3 PROPERTY INTERFACE_CONTAINER_SIZE_REQUIRED 1000)
 
   add_executable(exe1 exe1.cpp)
   # CONTAINER_SIZE_REQUIRED will be "200"
@@ -681,7 +696,8 @@ property are treated as ``SYSTEM`` include directories, as if they were
 listed in the :prop_tgt:`INTERFACE_SYSTEM_INCLUDE_DIRECTORIES` of the
 dependency. This can result in omission of compiler warnings for headers
 found in those directories.  This behavior for :ref:`imported targets` may
-be controlled with the :prop_tgt:`NO_SYSTEM_FROM_IMPORTED` target property.
+be controlled by setting the :prop_tgt:`NO_SYSTEM_FROM_IMPORTED` target
+property on the *consumers* of imported targets.
 
 If a binary target is linked transitively to a Mac OX framework, the
 ``Headers`` directory of the framework is also treated as a usage requirement.
@@ -768,7 +784,7 @@ A *library* output artifact of a buildsystem target may be:
   with the ``MODULE`` option.
 
 * On non-DLL platforms: the shared library file (e.g. ``.so`` or ``.dylib``)
-  of a shared shared library target created by the :command:`add_library`
+  of a shared library target created by the :command:`add_library`
   command with the ``SHARED`` option.
 
 The :prop_tgt:`LIBRARY_OUTPUT_DIRECTORY` and :prop_tgt:`LIBRARY_OUTPUT_NAME`
@@ -805,7 +821,7 @@ Directory-Scoped Commands
 The :command:`target_include_directories`,
 :command:`target_compile_definitions` and
 :command:`target_compile_options` commands have an effect on only one
-target at a time.  The commands :command:`add_definitions`,
+target at a time.  The commands :command:`add_compile_definitions`,
 :command:`add_compile_options` and :command:`include_directories` have
 a similar function, but operate at directory scope instead of target
 scope for convenience.
@@ -824,12 +840,11 @@ Imported Targets
 
 An :prop_tgt:`IMPORTED` target represents a pre-existing dependency.  Usually
 such targets are defined by an upstream package and should be treated as
-immutable.  It is not possible to use an :prop_tgt:`IMPORTED` target in the
-left-hand-side of the :command:`target_compile_definitions`,
-:command:`target_include_directories`, :command:`target_compile_options` or
-:command:`target_link_libraries` commands, as that would be an attempt to
-modify it.  :prop_tgt:`IMPORTED` targets are designed to be used only in the
-right-hand-side of those commands.
+immutable. After declaring an :prop_tgt:`IMPORTED` target one can adjust its
+target properties by using the customary commands such as
+:command:`target_compile_definitions`, :command:`target_include_directories`,
+:command:`target_compile_options` or :command:`target_link_libraries` just like
+with any other regular target.
 
 :prop_tgt:`IMPORTED` targets may have the same usage requirement properties
 populated as binary targets, such as
@@ -860,7 +875,7 @@ with :prop_tgt:`IMPORTED` targets.
 Alias Targets
 -------------
 
-An ``ALIAS`` target is a name which may be used interchangably with
+An ``ALIAS`` target is a name which may be used interchangeably with
 a binary target name in read-only contexts.  A primary use-case for ``ALIAS``
 targets is for example or unit test executables accompanying a library, which
 may be part of the same buildsystem or built separately based on user
@@ -964,6 +979,7 @@ are:
 * ``EXPORT_NAME``
 * ``IMPORTED``
 * ``NAME``
+* Properties matching ``IMPORTED_LIBNAME_*``
 * Properties matching ``MAP_IMPORTED_CONFIG_*``
 
 ``INTERFACE`` libraries may be installed and exported.  Any content they refer

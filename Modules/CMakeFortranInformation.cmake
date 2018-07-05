@@ -1,16 +1,8 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2004-2011 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
+
+include(CMakeLanguageInformation)
 
 # This file sets the basic flags for the Fortran language in CMake.
 # It also loads the available platform file for the system-compiler
@@ -30,12 +22,18 @@ if(CMAKE_COMPILER_IS_GNUG77)
   set(CMAKE_BASE_NAME g77)
 endif()
 if(CMAKE_Fortran_COMPILER_ID)
-  include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_Fortran_COMPILER_ID}-Fortran OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
+  include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_Fortran_COMPILER_ID}-Fortran OPTIONAL RESULT_VARIABLE _INCLUDED_FILE)
 endif()
 if (NOT _INCLUDED_FILE)
-  include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_BASE_NAME} OPTIONAL
+  include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_BASE_NAME} OPTIONAL
           RESULT_VARIABLE _INCLUDED_FILE)
 endif ()
+
+# load any compiler-wrapper specific information
+if (CMAKE_Fortran_COMPILER_WRAPPER)
+  __cmake_include_compiler_wrapper(Fortran)
+endif ()
+
 # We specify the compiler information in the system file for some
 # platforms, but this language may not have been enabled when the file
 # was first included.  Include it again to get the language info.
@@ -68,11 +66,6 @@ if(CMAKE_USER_MAKE_RULES_OVERRIDE_Fortran)
   include(${CMAKE_USER_MAKE_RULES_OVERRIDE_Fortran} RESULT_VARIABLE _override)
   set(CMAKE_USER_MAKE_RULES_OVERRIDE_Fortran "${_override}")
 endif()
-
-
-# Fortran needs cmake to do a requires step during its build process to
-# catch any modules
-set(CMAKE_NEEDS_REQUIRES_STEP_Fortran_FLAG 1)
 
 if(NOT CMAKE_Fortran_COMPILE_OPTIONS_PIC)
   set(CMAKE_Fortran_COMPILE_OPTIONS_PIC ${CMAKE_C_COMPILE_OPTIONS_PIC})
@@ -158,19 +151,11 @@ if(NOT CMAKE_INCLUDE_FLAG_Fortran)
   set(CMAKE_INCLUDE_FLAG_Fortran ${CMAKE_INCLUDE_FLAG_C})
 endif()
 
-if(NOT CMAKE_INCLUDE_FLAG_SEP_Fortran)
-  set(CMAKE_INCLUDE_FLAG_SEP_Fortran ${CMAKE_INCLUDE_FLAG_SEP_C})
-endif()
-
 set(CMAKE_VERBOSE_MAKEFILE FALSE CACHE BOOL "If this value is on, makefiles will be generated without the .SILENT directive, and all commands will be echoed to the console during the make.  This is useful for debugging only. With Visual Studio IDE projects all commands are done without /nologo.")
 
 set(CMAKE_Fortran_FLAGS_INIT "$ENV{FFLAGS} ${CMAKE_Fortran_FLAGS_INIT}")
-# avoid just having a space as the initial value for the cache
-if(CMAKE_Fortran_FLAGS_INIT STREQUAL " ")
-  set(CMAKE_Fortran_FLAGS_INIT)
-endif()
-set (CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS_INIT}" CACHE STRING
-     "Flags for Fortran compiler.")
+
+cmake_initialize_per_config_variable(CMAKE_Fortran_FLAGS "Flags used by the Fortran compiler")
 
 include(CMakeCommonLanguageInclude)
 
@@ -221,25 +206,6 @@ if(CMAKE_Fortran_STANDARD_LIBRARIES_INIT)
     CACHE STRING "Libraries linked by default with all Fortran applications.")
   mark_as_advanced(CMAKE_Fortran_STANDARD_LIBRARIES)
 endif()
-
-if(NOT CMAKE_NOT_USING_CONFIG_FLAGS)
-  set (CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG_INIT}" CACHE STRING
-     "Flags used by the compiler during debug builds.")
-  set (CMAKE_Fortran_FLAGS_MINSIZEREL "${CMAKE_Fortran_FLAGS_MINSIZEREL_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds for minimum size.")
-  set (CMAKE_Fortran_FLAGS_RELEASE "${CMAKE_Fortran_FLAGS_RELEASE_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds.")
-  set (CMAKE_Fortran_FLAGS_RELWITHDEBINFO "${CMAKE_Fortran_FLAGS_RELWITHDEBINFO_INIT}" CACHE STRING
-     "Flags used by the compiler during release builds with debug info.")
-
-endif()
-
-mark_as_advanced(
-CMAKE_Fortran_FLAGS
-CMAKE_Fortran_FLAGS_DEBUG
-CMAKE_Fortran_FLAGS_MINSIZEREL
-CMAKE_Fortran_FLAGS_RELEASE
-CMAKE_Fortran_FLAGS_RELWITHDEBINFO)
 
 # set this variable so we can avoid loading this more than once.
 set(CMAKE_Fortran_INFORMATION_LOADED 1)

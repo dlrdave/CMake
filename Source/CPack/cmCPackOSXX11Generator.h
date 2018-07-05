@@ -1,17 +1,11 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc.
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCPackOSXX11Generator_h
 #define cmCPackOSXX11Generator_h
+
+#include "cmConfigure.h" // IWYU pragma: keep
+
+#include <string>
 
 #include "cmCPackGenerator.h"
 
@@ -29,18 +23,19 @@ public:
    * Construct generator
    */
   cmCPackOSXX11Generator();
-  virtual ~cmCPackOSXX11Generator();
+  ~cmCPackOSXX11Generator() override;
 
 protected:
-  virtual int InitializeInternal();
-  int PackageFiles();
-  virtual const char* GetPackagingInstallPrefix();
-  virtual const char* GetOutputExtension() { return ".dmg"; }
+  virtual int InitializeInternal() override;
+  int PackageFiles() override;
+  const char* GetPackagingInstallPrefix() override;
+  const char* GetOutputExtension() override { return ".dmg"; }
 
-  //bool CopyCreateResourceFile(const std::string& name,
+  // bool CopyCreateResourceFile(const std::string& name,
   //                            const std::string& dir);
   bool CopyResourcePlistFile(const std::string& name, const std::string& dir,
-    const char* outputFileName = 0, bool copyOnly = false);
+                             const char* outputFileName = 0,
+                             bool copyOnly = false);
   std::string InstallPrefix;
 };
 

@@ -1,14 +1,6 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2013 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 import os
 import re
 
@@ -55,6 +47,19 @@ from sphinx.domains import Domain, ObjType
 from sphinx.roles import XRefRole
 from sphinx.util.nodes import make_refnode
 from sphinx import addnodes
+
+# Needed for checking if Sphinx version is >= 1.4.
+# See https://github.com/sphinx-doc/sphinx/issues/2673
+old_sphinx = False
+
+try:
+    from sphinx import version_info
+    if version_info < (1, 4):
+        old_sphinx = True
+except ImportError:
+    # The `sphinx.version_info` tuple was added in Sphinx v1.2:
+    old_sphinx = True
+
 
 class CMakeModule(Directive):
     required_arguments = 1
@@ -131,10 +136,16 @@ class _cmake_index_entry:
         self.desc = desc
 
     def __call__(self, title, targetid, main = 'main'):
-        return ('pair', u'%s ; %s' % (self.desc, title), targetid, main)
+        # See https://github.com/sphinx-doc/sphinx/issues/2673
+        if old_sphinx:
+            return ('pair', u'%s ; %s' % (self.desc, title), targetid, main)
+        else:
+            return ('pair', u'%s ; %s' % (self.desc, title), targetid, main, None)
 
 _cmake_index_objs = {
     'command':    _cmake_index_entry('command'),
+    'cpack_gen':  _cmake_index_entry('cpack generator'),
+    'envvar':     _cmake_index_entry('envvar'),
     'generator':  _cmake_index_entry('generator'),
     'manual':     _cmake_index_entry('manual'),
     'module':     _cmake_index_entry('module'),
@@ -269,7 +280,7 @@ class CMakeXRefRole(XRefRole):
     # We cannot insert index nodes using the result_nodes method
     # because CMakeXRefRole is processed before substitution_reference
     # nodes are evaluated so target nodes (with 'ids' fields) would be
-    # duplicated in each evaluted substitution replacement.  The
+    # duplicated in each evaluated substitution replacement.  The
     # docutils substitution transform does not allow this.  Instead we
     # use our own CMakeXRefTransform below to add index entries after
     # substitutions are completed.
@@ -315,6 +326,8 @@ class CMakeDomain(Domain):
     label = 'CMake'
     object_types = {
         'command':    ObjType('command',    'command'),
+        'cpack_gen':  ObjType('cpack_gen',  'cpack_gen'),
+        'envvar':     ObjType('envvar',     'envvar'),
         'generator':  ObjType('generator',  'generator'),
         'variable':   ObjType('variable',   'variable'),
         'module':     ObjType('module',     'module'),
@@ -330,6 +343,7 @@ class CMakeDomain(Domain):
     }
     directives = {
         'command':    CMakeObject,
+        'envvar':     CMakeObject,
         'variable':   CMakeObject,
         # Other object types cannot be created except by the CMakeTransform
         # 'generator':  CMakeObject,
@@ -346,6 +360,8 @@ class CMakeDomain(Domain):
     }
     roles = {
         'command':    CMakeXRefRole(fix_parens = True, lowercase = True),
+        'cpack_gen':  CMakeXRefRole(),
+        'envvar':     CMakeXRefRole(),
         'generator':  CMakeXRefRole(),
         'variable':   CMakeXRefRole(),
         'module':     CMakeXRefRole(),

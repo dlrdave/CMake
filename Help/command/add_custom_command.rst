@@ -20,7 +20,9 @@ The first signature is for adding a custom command to produce an output::
                                       [<lang2> depend2] ...]
                      [WORKING_DIRECTORY dir]
                      [COMMENT comment]
-                     [VERBATIM] [APPEND] [USES_TERMINAL])
+                     [DEPFILE depfile]
+                     [VERBATIM] [APPEND] [USES_TERMINAL]
+                     [COMMAND_EXPAND_LISTS])
 
 This defines a command to generate specified ``OUTPUT`` file(s).
 A target created in the same directory (``CMakeLists.txt`` file)
@@ -76,9 +78,12 @@ The options are:
   The optional ``ARGS`` argument is for backward compatibility and
   will be ignored.
 
-  If ``COMMAND`` specifies an executable target (created by the
+  If ``COMMAND`` specifies an executable target name (created by the
   :command:`add_executable` command) it will automatically be replaced
-  by the location of the executable created at build time.
+  by the location of the executable created at build time. If set, the
+  :prop_tgt:`CROSSCOMPILING_EMULATOR` executable target property will
+  also be prepended to the command to allow the executable to run on
+  the host.
   (Use the ``TARGET_FILE``
   :manual:`generator expression <cmake-generator-expressions(7)>` to
   reference an executable later in the command line.)
@@ -118,6 +123,14 @@ The options are:
   Arguments to ``DEPENDS`` may use
   :manual:`generator expressions <cmake-generator-expressions(7)>`.
 
+``COMMAND_EXPAND_LISTS``
+  Lists in ``COMMAND`` arguments will be expanded, including those
+  created with
+  :manual:`generator expressions <cmake-generator-expressions(7)>`,
+  allowing ``COMMAND`` arguments such as
+  ``${CC} "-I$<JOIN:$<TARGET_PROPERTY:foo,INCLUDE_DIRECTORIES>,;-I>" foo.cc``
+  to be properly expanded.
+
 ``IMPLICIT_DEPENDS``
   Request scanning of implicit dependencies of an input file.
   The language given specifies the programming language whose
@@ -133,8 +146,10 @@ The options are:
   Specify the primary input source file to the command.  This is
   treated just like any value given to the ``DEPENDS`` option
   but also suggests to Visual Studio generators where to hang
-  the custom command.  At most one custom command may specify a
-  given source file as its main dependency.
+  the custom command. Each source file may have at most one command
+  specifying it as its main dependency. A compile command (i.e. for a
+  library or an executable) counts as an implicit main dependency which
+  gets silently overwritten by a custom command specification.
 
 ``OUTPUT``
   Specify the output files the command is expected to produce.
@@ -167,6 +182,12 @@ The options are:
   If it is a relative path it will be interpreted relative to the
   build tree directory corresponding to the current source directory.
 
+``DEPFILE``
+  Specify a ``.d`` depfile for the :generator:`Ninja` generator.
+  A ``.d`` file holds dependencies usually emitted by the custom
+  command itself.
+  Using ``DEPFILE`` with other generators than Ninja is an error.
+
 Build Events
 ^^^^^^^^^^^^
 
@@ -178,7 +199,7 @@ target is already built, the command will not execute.
 
 ::
 
-  add_custom_command(TARGET target
+  add_custom_command(TARGET <target>
                      PRE_BUILD | PRE_LINK | POST_BUILD
                      COMMAND command1 [ARGS] [args1...]
                      [COMMAND command2 [ARGS] [args2...] ...]
@@ -188,14 +209,16 @@ target is already built, the command will not execute.
                      [VERBATIM] [USES_TERMINAL])
 
 This defines a new command that will be associated with building the
-specified target.  When the command will happen is determined by which
+specified ``<target>``.  The ``<target>`` must be defined in the current
+directory; targets defined in other directories may not be specified.
+
+When the command will happen is determined by which
 of the following is specified:
 
 ``PRE_BUILD``
-  Run before any other rules are executed within the target.
-  This is supported only on Visual Studio 7 or later.
-  For all other generators ``PRE_BUILD`` will be treated as
-  ``PRE_LINK``.
+  On :ref:`Visual Studio Generators`, run before any other rules are
+  executed within the target.
+  On other generators, run just before ``PRE_LINK`` commands.
 ``PRE_LINK``
   Run after sources have been compiled but before linking the binary
   or running the librarian or archiver tool of a static library.
@@ -203,3 +226,13 @@ of the following is specified:
   :command:`add_custom_target` command.
 ``POST_BUILD``
   Run after all other rules within the target have been executed.
+
+.. note::
+  Because generator expressions can be used in custom commands,
+  it is possible to define ``COMMAND`` lines or whole custom commands
+  which evaluate to empty strings for certain configurations.
+  For **Visual Studio 2010 (and newer)** generators these command
+  lines or custom commands will be omitted for the specific
+  configuration and no "empty-string-command" will be added.
+
+  This allows to add individual build events for every configuration.

@@ -1,17 +1,9 @@
-#=============================================================================
-# CMake - Cross Platform Makefile Generator
-# Copyright 2000-2013 Kitware, Inc., Insight Software Consortium
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 if(NOT CMake_SOURCE_DIR)
   set(CMakeHelp_STANDALONE 1)
-  cmake_minimum_required(VERSION 2.8.4 FATAL_ERROR)
+  cmake_minimum_required(VERSION 3.1 FATAL_ERROR)
   get_filename_component(tmp "${CMAKE_CURRENT_SOURCE_DIR}" PATH)
   get_filename_component(CMake_SOURCE_DIR "${tmp}" PATH)
   include(${CMake_SOURCE_DIR}/Modules/CTestUseLaunchers.cmake)
@@ -25,6 +17,7 @@ if(NOT CMake_SOURCE_DIR)
 endif()
 project(CMakeHelp NONE)
 
+option(SPHINX_INFO "Build Info manual with Sphinx" OFF)
 option(SPHINX_MAN "Build man pages with Sphinx" OFF)
 option(SPHINX_HTML "Build html help with Sphinx" OFF)
 option(SPHINX_SINGLEHTML "Build html single page help with Sphinx" OFF)
@@ -40,7 +33,7 @@ separate_arguments(sphinx_flags UNIX_COMMAND "${SPHINX_FLAGS}")
 mark_as_advanced(SPHINX_TEXT)
 mark_as_advanced(SPHINX_FLAGS)
 
-if(NOT SPHINX_MAN AND NOT SPHINX_HTML AND NOT SPHINX_SINGLEHTML AND NOT SPHINX_QTHELP AND NOT SPHINX_TEXT)
+if(NOT SPHINX_INFO AND NOT SPHINX_MAN AND NOT SPHINX_HTML AND NOT SPHINX_SINGLEHTML AND NOT SPHINX_QTHELP AND NOT SPHINX_TEXT)
   return()
 elseif(NOT SPHINX_EXECUTABLE)
   message(FATAL_ERROR "SPHINX_EXECUTABLE (sphinx-build) is not found!")
@@ -73,6 +66,24 @@ if(SPHINX_SINGLEHTML)
 endif()
 if(SPHINX_TEXT)
   list(APPEND doc_formats text)
+endif()
+if(SPHINX_INFO)
+  find_program(MAKEINFO_EXECUTABLE
+    NAMES makeinfo
+    DOC "makeinfo tool"
+    )
+  if (NOT MAKEINFO_EXECUTABLE)
+    message(FATAL_ERROR "MAKEINFO_EXECUTABLE (makeinfo) not found!")
+  endif()
+  list(APPEND doc_formats texinfo)
+
+  # Sphinx texinfo builder supports .info, .txt, .html and .pdf output.
+  # SPHINX_INFO controls the .info output.
+  set(texinfo_extra_commands
+    COMMAND ${MAKEINFO_EXECUTABLE} --no-split -o
+      ${CMAKE_CURRENT_BINARY_DIR}/texinfo/cmake.info
+      ${CMAKE_CURRENT_BINARY_DIR}/texinfo/cmake.texi
+  )
 endif()
 if(SPHINX_QTHELP)
   find_package(PythonInterp REQUIRED)
@@ -136,18 +147,28 @@ endforeach()
 
 add_custom_target(documentation ALL DEPENDS ${doc_format_outputs})
 
-foreach(t
-    cmake
-    ccmake
-    cmake-gui
-    cpack
-    ctest
-    )
-  if(TARGET ${t})
-    # Build documentation after main executables.
-    add_dependencies(documentation ${t})
-  endif()
-endforeach()
+if(CMake_SPHINX_DEPEND_ON_EXECUTABLES)
+  foreach(t
+      cmake
+      ccmake
+      cmake-gui
+      cpack
+      ctest
+      )
+    if(TARGET ${t})
+      # Build documentation after main executables.
+      add_dependencies(documentation ${t})
+    endif()
+  endforeach()
+endif()
+
+if(SPHINX_INFO)
+  CMake_OPTIONAL_COMPONENT(sphinx-info)
+  install(FILES ${CMAKE_CURRENT_BINARY_DIR}/texinfo/cmake.info
+          DESTINATION ${CMAKE_INFO_DIR}
+          ${COMPONENT}
+          )
+endif()
 
 if(SPHINX_MAN)
   file(GLOB man_rst RELATIVE ${CMake_SOURCE_DIR}/Help/manual
@@ -156,10 +177,21 @@ if(SPHINX_MAN)
     if("x${m}" MATCHES "^x(.+)\\.([1-9])\\.rst$")
       set(name "${CMAKE_MATCH_1}")
       set(sec "${CMAKE_MATCH_2}")
-      CMake_OPTIONAL_COMPONENT(sphinx-man)
-      install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/${name}.${sec}
-              DESTINATION ${CMAKE_MAN_DIR}/man${sec}
-              ${COMPONENT})
+      set(skip FALSE)
+      if(NOT CMakeHelp_STANDALONE)
+        if(name STREQUAL "ccmake" AND NOT BUILD_CursesDialog)
+          set(skip TRUE)
+        elseif(name STREQUAL "cmake-gui" AND NOT BUILD_QtDialog)
+          set(skip TRUE)
+        endif()
+      endif()
+      if(NOT skip)
+        CMake_OPTIONAL_COMPONENT(sphinx-man)
+        install(FILES ${CMAKE_CURRENT_BINARY_DIR}/man/${name}.${sec}
+                DESTINATION ${CMAKE_MAN_DIR}/man${sec}
+                ${COMPONENT})
+      endif()
+      unset(skip)
     endif()
   endforeach()
 endif()

@@ -4,7 +4,7 @@ COMPILE_DEFINITIONS
 Preprocessor definitions for compiling a directory's sources.
 
 This property specifies the list of options given so far to the
-:command:`add_definitions` command.
+:command:`add_compile_definitions` (or :command:`add_definitions`) command.
 
 The ``COMPILE_DEFINITIONS`` property may be set to a semicolon-separated
 list of preprocessor definitions using the syntax ``VAR`` or ``VAR=value``.
@@ -17,8 +17,7 @@ This property will be initialized in each directory by its value in the
 directory's parent.
 
 CMake will automatically drop some definitions that are not supported
-by the native build tool.  The VS6 IDE does not support definition
-values with spaces (but NMake does).
+by the native build tool.
 
 .. include:: /include/COMPILE_DEFINITIONS_DISCLAIMER.txt
 

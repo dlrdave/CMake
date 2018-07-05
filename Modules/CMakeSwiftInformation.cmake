@@ -1,18 +1,9 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
 
-#=============================================================================
-# Copyright 2004-2015 Kitware, Inc.
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
 
 set(CMAKE_Swift_OUTPUT_EXTENSION .o)
+set(CMAKE_INCLUDE_FLAG_Swift "-I")
 
 # Load compiler-specific information.
 if(CMAKE_Swift_COMPILER_ID)
@@ -23,9 +14,9 @@ endif()
 if(CMAKE_Swift_COMPILER_ID)
   # load a hardware specific file, mostly useful for embedded compilers
   if(CMAKE_SYSTEM_PROCESSOR)
-    include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_Swift_COMPILER_ID}-Swift-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL)
+    include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_Swift_COMPILER_ID}-Swift-${CMAKE_SYSTEM_PROCESSOR} OPTIONAL)
   endif()
-  include(Platform/${CMAKE_SYSTEM_NAME}-${CMAKE_Swift_COMPILER_ID}-Swift OPTIONAL)
+  include(Platform/${CMAKE_EFFECTIVE_SYSTEM_NAME}-${CMAKE_Swift_COMPILER_ID}-Swift OPTIONAL)
 endif()
 
 # for most systems a module is the same as a shared library

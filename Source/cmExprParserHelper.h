@@ -1,38 +1,22 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmExprParserHelper_h
 #define cmExprParserHelper_h
 
-#include "cmStandardIncludes.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
-#define YYSTYPE cmExprParserHelper::ParserType
-#define YYSTYPE_IS_DECLARED
-#define YY_EXTRA_TYPE cmExprParserHelper*
-#define YY_DECL int cmExpr_yylex(YYSTYPE* yylvalp, yyscan_t yyscanner)
+#include "cm_kwiml.h"
 
-/** \class cmExprParserHelper
- * \brief Helper class for parsing java source files
- *
- * Finds dependencies for java file and list of outputs
- */
-
-class cmMakefile;
+#include <string>
+#include <vector>
 
 class cmExprParserHelper
 {
 public:
-  typedef struct {
-    int Number;
-  } ParserType;
+  struct ParserType
+  {
+    KWIML_INT_int64_t Number;
+  };
 
   cmExprParserHelper();
   ~cmExprParserHelper();
@@ -42,9 +26,9 @@ public:
   int LexInput(char* buf, int maxlen);
   void Error(const char* str);
 
-  void SetResult(int value);
+  void SetResult(KWIML_INT_int64_t value);
 
-  int GetResult() { return this->Result; }
+  KWIML_INT_int64_t GetResult() { return this->Result; }
 
   const char* GetError() { return this->ErrorString.c_str(); }
 
@@ -58,14 +42,17 @@ private:
   void Print(const char* place, const char* str);
 
   void CleanupParser();
+  void SetError(std::string errorString);
 
-  int Result;
+  KWIML_INT_int64_t Result;
   const char* FileName;
   long FileLine;
   std::string ErrorString;
 };
 
+#define YYSTYPE cmExprParserHelper::ParserType
+#define YYSTYPE_IS_DECLARED
+#define YY_EXTRA_TYPE cmExprParserHelper*
+#define YY_DECL int cmExpr_yylex(YYSTYPE* yylvalp, yyscan_t yyscanner)
+
 #endif
-
-
-

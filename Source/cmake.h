@@ -1,34 +1,34 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmake_h
 #define cmake_h
 
-#include "cmListFileCache.h"
-#include "cmSystemTools.h"
-#include "cmInstalledFile.h"
-#include "cmCacheManager.h"
-#include "cmState.h"
+#include "cmConfigure.h" // IWYU pragma: keep
 
-class cmGlobalGeneratorFactory;
-class cmGlobalGenerator;
-class cmLocalGenerator;
-class cmMakefile;
-class cmVariableWatch;
+#include <map>
+#include <set>
+#include <string>
+#include <unordered_set>
+#include <vector>
+
+#include "cmInstalledFile.h"
+#include "cmListFileCache.h"
+#include "cmStateSnapshot.h"
+#include "cmStateTypes.h"
+
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+#  include "cm_jsoncpp_value.h"
+#endif
+
+class cmExternalMakefileProjectGeneratorFactory;
 class cmFileTimeComparison;
-class cmExternalMakefileProjectGenerator;
-class cmDocumentationSection;
-class cmTarget;
-class cmGeneratedFileStream;
+class cmGlobalGenerator;
+class cmGlobalGeneratorFactory;
+class cmMakefile;
+class cmMessenger;
+class cmState;
+class cmVariableWatch;
+struct cmDocumentationEntry;
 
 /** \brief Represents a cmake invocation.
  *
@@ -56,9 +56,20 @@ class cmGeneratedFileStream;
 
 class cmake
 {
- public:
+  CM_DISABLE_COPY(cmake)
+
+public:
+  enum Role
+  {
+    RoleInternal, // no commands
+    RoleScript,   // script commands
+    RoleProject   // all commands
+  };
+
   enum MessageType
-  { AUTHOR_WARNING,
+  {
+    AUTHOR_WARNING,
+    AUTHOR_ERROR,
     FATAL_ERROR,
     INTERNAL_ERROR,
     MESSAGE,
@@ -71,19 +82,20 @@ class cmake
   enum DiagLevel
   {
     DIAG_IGNORE,
-    DIAG_WARN
+    DIAG_WARN,
+    DIAG_ERROR
   };
 
   /** \brief Describes the working modes of cmake */
   enum WorkingMode
   {
     NORMAL_MODE, ///< Cmake runs to create project files
-    /** \brief Script mode (started by using -P).
-     *
-     * In script mode there is no generator and no cache. Also,
-     * languages are not enabled, so add_executable and things do
-     * nothing.
-     */
+                 /** \brief Script mode (started by using -P).
+                  *
+                  * In script mode there is no generator and no cache. Also,
+                  * languages are not enabled, so add_executable and things do
+                  * nothing.
+                  */
     SCRIPT_MODE,
     /** \brief A pkg-config like mode
      *
@@ -96,21 +108,35 @@ class cmake
   };
 
   struct GeneratorInfo
-    {
+  {
     std::string name;
+    std::string baseName;
+    std::string extraName;
     bool supportsToolset;
-    };
+    bool supportsPlatform;
+    bool isAlias;
+  };
 
   typedef std::map<std::string, cmInstalledFile> InstalledFilesMap;
 
+  static const int NO_BUILD_PARALLEL_LEVEL = -1;
+  static const int DEFAULT_BUILD_PARALLEL_LEVEL = 0;
+
   /// Default constructor
-  cmake();
+  cmake(Role role);
   /// Destructor
   ~cmake();
 
-  static const char *GetCMakeFilesDirectory() {return "/CMakeFiles";}
-  static const char *GetCMakeFilesDirectoryPostSlash() {
-    return "CMakeFiles/";}
+#if defined(CMAKE_BUILD_WITH_CMAKE)
+  Json::Value ReportCapabilitiesJson(bool haveServerMode) const;
+#endif
+  std::string ReportCapabilities(bool haveServerMode) const;
+
+  static const char* GetCMakeFilesDirectory() { return "/CMakeFiles"; }
+  static const char* GetCMakeFilesDirectoryPostSlash()
+  {
+    return "CMakeFiles/";
+  }
 
   //@{
   /**
@@ -119,17 +145,19 @@ class cmake
    * path-to-source cmake was run with.
    */
   void SetHomeDirectory(const std::string& dir);
-  const char* GetHomeDirectory() const;
+  std::string const& GetHomeDirectory() const;
   void SetHomeOutputDirectory(const std::string& dir);
-  const char* GetHomeOutputDirectory() const;
+  std::string const& GetHomeOutputDirectory() const;
   //@}
 
   /**
    * Handle a command line invocation of cmake.
    */
-  int Run(const std::vector<std::string>&args)
-    { return this->Run(args, false); }
-  int Run(const std::vector<std::string>&args, bool noconfigure);
+  int Run(const std::vector<std::string>& args)
+  {
+    return this->Run(args, false);
+  }
+  int Run(const std::vector<std::string>& args, bool noconfigure);
 
   /**
    * Run the global generator Generate step.
@@ -146,10 +174,9 @@ class cmake
   int ActualConfigure();
 
   ///! Break up a line like VAR:type="value" into var, type and value
-  static bool ParseCacheEntry(const std::string& entry,
-                         std::string& var,
-                         std::string& value,
-                         cmState::CacheEntryType& type);
+  static bool ParseCacheEntry(const std::string& entry, std::string& var,
+                              std::string& value,
+                              cmStateEnums::CacheEntryType& type);
 
   int LoadCache();
   bool LoadCache(const std::string& path);
@@ -164,40 +191,64 @@ class cmake
   cmGlobalGenerator* CreateGlobalGenerator(const std::string& name);
 
   ///! Return the global generator assigned to this instance of cmake
-  cmGlobalGenerator* GetGlobalGenerator()     { return this->GlobalGenerator; }
+  cmGlobalGenerator* GetGlobalGenerator() { return this->GlobalGenerator; }
   ///! Return the global generator assigned to this instance of cmake, const
   const cmGlobalGenerator* GetGlobalGenerator() const
-                                              { return this->GlobalGenerator; }
+  {
+    return this->GlobalGenerator;
+  }
+
+  ///! Return the full path to where the CMakeCache.txt file should be.
+  static std::string FindCacheFile(const std::string& binaryDir);
 
   ///! Return the global generator assigned to this instance of cmake
-  void SetGlobalGenerator(cmGlobalGenerator *);
+  void SetGlobalGenerator(cmGlobalGenerator*);
 
   ///! Get the names of the current registered generators
-  void GetRegisteredGenerators(std::vector<GeneratorInfo>& generators);
+  void GetRegisteredGenerators(std::vector<GeneratorInfo>& generators) const;
+
+  ///! Set the name of the selected generator-specific instance.
+  void SetGeneratorInstance(std::string const& instance)
+  {
+    this->GeneratorInstance = instance;
+  }
 
   ///! Set the name of the selected generator-specific platform.
   void SetGeneratorPlatform(std::string const& ts)
-    { this->GeneratorPlatform = ts; }
-
-  ///! Get the name of the selected generator-specific platform.
-  std::string const& GetGeneratorPlatform() const
-    { return this->GeneratorPlatform; }
+  {
+    this->GeneratorPlatform = ts;
+  }
 
   ///! Set the name of the selected generator-specific toolset.
   void SetGeneratorToolset(std::string const& ts)
-    { this->GeneratorToolset = ts; }
-
-  ///! Get the name of the selected generator-specific toolset.
-  std::string const& GetGeneratorToolset() const
-    { return this->GeneratorToolset; }
-
-  ///! get the cmCachemManager used by this invocation of cmake
-  cmCacheManager *GetCacheManager() { return this->CacheManager; }
+  {
+    this->GeneratorToolset = ts;
+  }
 
   const std::vector<std::string>& GetSourceExtensions() const
-    {return this->SourceFileExtensions;}
+  {
+    return this->SourceFileExtensions;
+  }
+
+  bool IsSourceExtension(const std::string& ext) const
+  {
+    return this->SourceFileExtensionsSet.find(ext) !=
+      this->SourceFileExtensionsSet.end();
+  }
+
   const std::vector<std::string>& GetHeaderExtensions() const
-    {return this->HeaderFileExtensions;}
+  {
+    return this->HeaderFileExtensions;
+  }
+
+  bool IsHeaderExtension(const std::string& ext) const
+  {
+    return this->HeaderFileExtensionsSet.find(ext) !=
+      this->HeaderFileExtensionsSet.end();
+  }
+
+  // Strips the extension (if present and known) from a filename
+  std::string StripExtension(const std::string& file) const;
 
   /**
    * Given a variable name, return its value (as a string).
@@ -205,8 +256,17 @@ class cmake
   const char* GetCacheDefinition(const std::string&) const;
   ///! Add an entry into the cache
   void AddCacheEntry(const std::string& key, const char* value,
-                     const char* helpString,
-                     int type);
+                     const char* helpString, int type);
+
+  bool DoWriteGlobVerifyTarget() const;
+  std::string const& GetGlobVerifyScript() const;
+  std::string const& GetGlobVerifyStamp() const;
+  void AddGlobCacheEntry(bool recurse, bool listDirectories,
+                         bool followSymlinks, const std::string& relative,
+                         const std::string& expression,
+                         const std::vector<std::string>& files,
+                         const std::string& variable,
+                         cmListFileBacktrace const& bt);
 
   /**
    * Get the system information and write it to the file specified
@@ -224,8 +284,7 @@ class cmake
   ///! Parse command line arguments that might set cache values
   bool SetCacheArgs(const std::vector<std::string>&);
 
-  typedef  void (*ProgressCallbackType)
-    (const char*msg, float progress, void *);
+  typedef void (*ProgressCallbackType)(const char* msg, float progress, void*);
   /**
    *  Set the function used by GUIs to receive progress updates
    *  Function gets passed: message as a const char*, a progress
@@ -233,10 +292,10 @@ class cmake
    *  number provided may be negative in cases where a message is
    *  to be displayed without any progress percentage.
    */
-  void SetProgressCallback(ProgressCallbackType f, void* clientData=0);
+  void SetProgressCallback(ProgressCallbackType f, void* clientData = nullptr);
 
   ///! this is called by generators to update the progress
-  void UpdateProgress(const char *msg, float prog);
+  void UpdateProgress(const char* msg, float prog);
 
   ///! Get the variable watch object
   cmVariableWatch* GetVariableWatch() { return this->VariableWatch; }
@@ -244,20 +303,22 @@ class cmake
   void GetGeneratorDocumentation(std::vector<cmDocumentationEntry>&);
 
   ///! Set/Get a property of this target file
-  void SetProperty(const std::string& prop, const char *value);
-  void AppendProperty(const std::string& prop,
-                      const char *value,bool asString=false);
-  const char *GetProperty(const std::string& prop);
+  void SetProperty(const std::string& prop, const char* value);
+  void AppendProperty(const std::string& prop, const char* value,
+                      bool asString = false);
+  const char* GetProperty(const std::string& prop);
   bool GetPropertyAsBool(const std::string& prop);
 
   ///! Get or create an cmInstalledFile instance and return a pointer to it
-  cmInstalledFile *GetOrCreateInstalledFile(
-    cmMakefile* mf, const std::string& name);
+  cmInstalledFile* GetOrCreateInstalledFile(cmMakefile* mf,
+                                            const std::string& name);
 
   cmInstalledFile const* GetInstalledFile(const std::string& name) const;
 
   InstalledFilesMap const& GetInstalledFiles() const
-    { return this->InstalledFiles; }
+  {
+    return this->InstalledFiles;
+  }
 
   ///! Do all the checks before running configure
   int DoPreConfigureChecks();
@@ -266,8 +327,8 @@ class cmake
   WorkingMode GetWorkingMode() { return this->CurrentWorkingMode; }
 
   ///! Debug the try compile stuff by not deleting the files
-  bool GetDebugTryCompile(){return this->DebugTryCompile;}
-  void DebugTryCompileOn(){this->DebugTryCompile = true;}
+  bool GetDebugTryCompile() { return this->DebugTryCompile; }
+  void DebugTryCompileOn() { this->DebugTryCompile = true; }
 
   /**
    * Generate CMAKE_ROOT and CMAKE_COMMAND cache entries
@@ -281,21 +342,29 @@ class cmake
 
   // Do we want debug output during the cmake run.
   bool GetDebugOutput() { return this->DebugOutput; }
-  void SetDebugOutputOn(bool b) { this->DebugOutput = b;}
+  void SetDebugOutputOn(bool b) { this->DebugOutput = b; }
 
   // Do we want trace output during the cmake run.
-  bool GetTrace() { return this->Trace;}
-  void SetTrace(bool b) {  this->Trace = b;}
-  bool GetTraceExpand() { return this->TraceExpand;}
-  void SetTraceExpand(bool b) {  this->TraceExpand = b;}
-  bool GetWarnUninitialized() { return this->WarnUninitialized;}
-  void SetWarnUninitialized(bool b) {  this->WarnUninitialized = b;}
-  bool GetWarnUnused() { return this->WarnUnused;}
-  void SetWarnUnused(bool b) {  this->WarnUnused = b;}
-  bool GetWarnUnusedCli() { return this->WarnUnusedCli;}
-  void SetWarnUnusedCli(bool b) {  this->WarnUnusedCli = b;}
-  bool GetCheckSystemVars() { return this->CheckSystemVars;}
-  void SetCheckSystemVars(bool b) {  this->CheckSystemVars = b;}
+  bool GetTrace() { return this->Trace; }
+  void SetTrace(bool b) { this->Trace = b; }
+  bool GetTraceExpand() { return this->TraceExpand; }
+  void SetTraceExpand(bool b) { this->TraceExpand = b; }
+  void AddTraceSource(std::string const& file)
+  {
+    this->TraceOnlyThisSources.push_back(file);
+  }
+  std::vector<std::string> const& GetTraceSources() const
+  {
+    return this->TraceOnlyThisSources;
+  }
+  bool GetWarnUninitialized() { return this->WarnUninitialized; }
+  void SetWarnUninitialized(bool b) { this->WarnUninitialized = b; }
+  bool GetWarnUnused() { return this->WarnUnused; }
+  void SetWarnUnused(bool b) { this->WarnUnused = b; }
+  bool GetWarnUnusedCli() { return this->WarnUnusedCli; }
+  void SetWarnUnusedCli(bool b) { this->WarnUnusedCli = b; }
+  bool GetCheckSystemVars() { return this->CheckSystemVars; }
+  void SetCheckSystemVars(bool b) { this->CheckSystemVars = b; }
 
   void MarkCliAsUsed(const std::string& variable);
 
@@ -304,75 +373,106 @@ class cmake
   std::vector<std::string> GetDebugConfigs();
 
   void SetCMakeEditCommand(std::string const& s)
-    { this->CMakeEditCommand = s; }
+  {
+    this->CMakeEditCommand = s;
+  }
   std::string const& GetCMakeEditCommand() const
-    { return this->CMakeEditCommand; }
+  {
+    return this->CMakeEditCommand;
+  }
 
-  void SetSuppressDevWarnings(bool v);
+  cmMessenger* GetMessenger() const;
+
   /*
    * Get the state of the suppression of developer (author) warnings.
    * Returns false, by default, if developer warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDevWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDevWarnings() const;
+  /*
+   * Set the state of the suppression of developer (author) warnings.
+   */
+  void SetSuppressDevWarnings(bool v);
 
   /*
    * Get the state of the suppression of deprecated warnings.
    * Returns false, by default, if deprecated warnings should be shown, true
    * otherwise.
    */
-  bool GetSuppressDeprecatedWarnings(cmMakefile const* mf = NULL);
+  bool GetSuppressDeprecatedWarnings() const;
+  /*
+   * Set the state of the suppression of deprecated warnings.
+   */
+  void SetSuppressDeprecatedWarnings(bool v);
+
+  /*
+   * Get the state of treating developer (author) warnings as errors.
+   * Returns false, by default, if warnings should not be treated as errors,
+   * true otherwise.
+   */
+  bool GetDevWarningsAsErrors() const;
+  /**
+   * Set the state of treating developer (author) warnings as errors.
+   */
+  void SetDevWarningsAsErrors(bool v);
+
+  /*
+   * Get the state of treating deprecated warnings as errors.
+   * Returns false, by default, if warnings should not be treated as errors,
+   * true otherwise.
+   */
+  bool GetDeprecatedWarningsAsErrors() const;
+  /**
+   * Set the state of treating developer (author) warnings as errors.
+   */
+  void SetDeprecatedWarningsAsErrors(bool v);
 
   /** Display a message to the user.  */
-  void IssueMessage(cmake::MessageType t, std::string const& text,
-        cmListFileBacktrace const& backtrace = cmListFileBacktrace(),
-        bool force = false);
-  void IssueMessage(cmake::MessageType t, std::string const& text,
-        cmListFileContext const& lfc,
-        bool force = false);
+  void IssueMessage(
+    cmake::MessageType t, std::string const& text,
+    cmListFileBacktrace const& backtrace = cmListFileBacktrace()) const;
 
   ///! run the --build option
-  int Build(const std::string& dir,
-            const std::string& target,
+  int Build(int jobs, const std::string& dir, const std::string& target,
             const std::string& config,
-            const std::vector<std::string>& nativeOptions,
-            bool clean);
+            const std::vector<std::string>& nativeOptions, bool clean);
+
+  ///! run the --open option
+  bool Open(const std::string& dir, bool dryRun);
 
   void UnwatchUnusedCli(const std::string& var);
   void WatchUnusedCli(const std::string& var);
 
   cmState* GetState() const { return this->State; }
-  void SetCurrentSnapshot(cmState::Snapshot snapshot)
-  { this->CurrentSnapshot = snapshot; }
-  cmState::Snapshot GetCurrentSnapshot() const
-  { return this->CurrentSnapshot; }
+  void SetCurrentSnapshot(cmStateSnapshot const& snapshot)
+  {
+    this->CurrentSnapshot = snapshot;
+  }
+  cmStateSnapshot GetCurrentSnapshot() const { return this->CurrentSnapshot; }
 
 protected:
   void RunCheckForUnusedVariables();
   void InitializeProperties();
   int HandleDeleteCacheVariables(const std::string& var);
 
-  typedef
-     cmExternalMakefileProjectGenerator* (*CreateExtraGeneratorFunctionType)();
-  typedef std::map<std::string,
-                CreateExtraGeneratorFunctionType> RegisteredExtraGeneratorsMap;
   typedef std::vector<cmGlobalGeneratorFactory*> RegisteredGeneratorsVector;
   RegisteredGeneratorsVector Generators;
-  RegisteredExtraGeneratorsMap ExtraGenerators;
-  void AddDefaultCommands();
+  typedef std::vector<cmExternalMakefileProjectGeneratorFactory*>
+    RegisteredExtraGeneratorsVector;
+  RegisteredExtraGeneratorsVector ExtraGenerators;
+  void AddScriptingCommands();
+  void AddProjectCommands();
   void AddDefaultGenerators();
   void AddDefaultExtraGenerators();
-  void AddExtraGenerator(const std::string& name,
-                         CreateExtraGeneratorFunctionType newFunction);
 
-  cmGlobalGenerator *GlobalGenerator;
-  cmCacheManager *CacheManager;
+  cmGlobalGenerator* GlobalGenerator;
   std::map<std::string, DiagLevel> DiagLevels;
+  std::string GeneratorInstance;
   std::string GeneratorPlatform;
   std::string GeneratorToolset;
 
   ///! read in a cmake list file to initialize the cache
-  void ReadListFile(const std::vector<std::string>& args, const char *path);
+  void ReadListFile(const std::vector<std::string>& args, const char* path);
   bool FindPackage(const std::vector<std::string>& args);
 
   ///! Check if CMAKE_CACHEFILE_DIR is set. If it is not, delete the log file.
@@ -396,11 +496,8 @@ protected:
   cmVariableWatch* VariableWatch;
 
 private:
-  cmake(const cmake&);  // Not implemented.
-  void operator=(const cmake&);  // Not implemented.
   ProgressCallbackType ProgressCallback;
   void* ProgressCallbackClientData;
-  bool Verbose;
   bool InTryCompile;
   WorkingMode CurrentWorkingMode;
   bool DebugOutput;
@@ -419,7 +516,9 @@ private:
   std::string CheckStampList;
   std::string VSSolutionFile;
   std::vector<std::string> SourceFileExtensions;
+  std::unordered_set<std::string> SourceFileExtensionsSet;
   std::vector<std::string> HeaderFileExtensions;
+  std::unordered_set<std::string> HeaderFileExtensionsSet;
   bool ClearBuildSystem;
   bool DebugTryCompile;
   cmFileTimeComparison* FileComparison;
@@ -427,97 +526,126 @@ private:
   InstalledFilesMap InstalledFiles;
 
   cmState* State;
-  cmState::Snapshot CurrentSnapshot;
+  cmStateSnapshot CurrentSnapshot;
+  cmMessenger* Messenger;
+
+  std::vector<std::string> TraceOnlyThisSources;
 
   void UpdateConversionPathTable();
 
   // Print a list of valid generators to stderr.
   void PrintGeneratorList();
 
+  void CreateDefaultGlobalGenerator();
+
+  /**
+   * Convert a message type between a warning and an error, based on the state
+   * of the error output CMake variables, in the cache.
+   */
+  cmake::MessageType ConvertMessageType(cmake::MessageType t) const;
+
   /*
    * Check if messages of this type should be output, based on the state of the
    * warning and error output CMake variables, in the cache.
    */
-  bool IsMessageTypeVisible(cmake::MessageType t);
-
-  bool PrintMessagePreamble(cmake::MessageType t, std::ostream& msg);
+  bool IsMessageTypeVisible(cmake::MessageType t) const;
 };
 
-#define CMAKE_STANDARD_OPTIONS_TABLE \
-  {"-C <initial-cache>", "Pre-load a script to populate the cache."}, \
-  {"-D <var>[:<type>]=<value>", "Create a cmake cache entry."}, \
-  {"-U <globbing_expr>", "Remove matching entries from CMake cache."}, \
-  {"-G <generator-name>", "Specify a build system generator."},\
-  {"-T <toolset-name>", "Specify toolset name if supported by generator."}, \
-  {"-A <platform-name>", "Specify platform name if supported by generator."}, \
-  {"-Wno-dev", "Suppress developer warnings."},\
-  {"-Wdev", "Enable developer warnings."},\
-  {"-Wdeprecated", "Enable deprecation warnings."},\
-  {"-Wno-deprecated", "Suppress deprecation warnings."}
+#define CMAKE_STANDARD_OPTIONS_TABLE                                          \
+  { "-C <initial-cache>", "Pre-load a script to populate the cache." },       \
+    { "-D <var>[:<type>]=<value>", "Create or update a cmake cache entry." }, \
+    { "-U <globbing_expr>", "Remove matching entries from CMake cache." },    \
+    { "-G <generator-name>", "Specify a build system generator." },           \
+    { "-T <toolset-name>",                                                    \
+      "Specify toolset name if supported by generator." },                    \
+    { "-A <platform-name>",                                                   \
+      "Specify platform name if supported by generator." },                   \
+    { "-Wdev", "Enable developer warnings." },                                \
+    { "-Wno-dev", "Suppress developer warnings." },                           \
+    { "-Werror=dev", "Make developer warnings errors." },                     \
+    { "-Wno-error=dev", "Make developer warnings not errors." },              \
+    { "-Wdeprecated", "Enable deprecation warnings." },                       \
+    { "-Wno-deprecated", "Suppress deprecation warnings." },                  \
+    { "-Werror=deprecated",                                                   \
+      "Make deprecated macro and function warnings "                          \
+      "errors." },                                                            \
+  {                                                                           \
+    "-Wno-error=deprecated",                                                  \
+      "Make deprecated macro and function warnings "                          \
+      "not errors."                                                           \
+  }
 
-#define FOR_EACH_C_FEATURE(F) \
-  F(c_function_prototypes) \
-  F(c_restrict) \
-  F(c_static_assert) \
+#define FOR_EACH_C_FEATURE(F)                                                 \
+  F(c_std_90)                                                                 \
+  F(c_std_99)                                                                 \
+  F(c_std_11)                                                                 \
+  F(c_function_prototypes)                                                    \
+  F(c_restrict)                                                               \
+  F(c_static_assert)                                                          \
   F(c_variadic_macros)
 
-#define FOR_EACH_CXX_FEATURE(F) \
-  F(cxx_aggregate_default_initializers) \
-  F(cxx_alias_templates) \
-  F(cxx_alignas) \
-  F(cxx_alignof) \
-  F(cxx_attributes) \
-  F(cxx_attribute_deprecated) \
-  F(cxx_auto_type) \
-  F(cxx_binary_literals) \
-  F(cxx_constexpr) \
-  F(cxx_contextual_conversions) \
-  F(cxx_decltype) \
-  F(cxx_decltype_auto) \
-  F(cxx_decltype_incomplete_return_types) \
-  F(cxx_default_function_template_args) \
-  F(cxx_defaulted_functions) \
-  F(cxx_defaulted_move_initializers) \
-  F(cxx_delegating_constructors) \
-  F(cxx_deleted_functions) \
-  F(cxx_digit_separators) \
-  F(cxx_enum_forward_declarations) \
-  F(cxx_explicit_conversions) \
-  F(cxx_extended_friend_declarations) \
-  F(cxx_extern_templates) \
-  F(cxx_final) \
-  F(cxx_func_identifier) \
-  F(cxx_generalized_initializers) \
-  F(cxx_generic_lambdas) \
-  F(cxx_inheriting_constructors) \
-  F(cxx_inline_namespaces) \
-  F(cxx_lambdas) \
-  F(cxx_lambda_init_captures) \
-  F(cxx_local_type_template_args) \
-  F(cxx_long_long_type) \
-  F(cxx_noexcept) \
-  F(cxx_nonstatic_member_init) \
-  F(cxx_nullptr) \
-  F(cxx_override) \
-  F(cxx_range_for) \
-  F(cxx_raw_string_literals) \
-  F(cxx_reference_qualified_functions) \
-  F(cxx_relaxed_constexpr) \
-  F(cxx_return_type_deduction) \
-  F(cxx_right_angle_brackets) \
-  F(cxx_rvalue_references) \
-  F(cxx_sizeof_member) \
-  F(cxx_static_assert) \
-  F(cxx_strong_enums) \
-  F(cxx_template_template_parameters) \
-  F(cxx_thread_local) \
-  F(cxx_trailing_return_types) \
-  F(cxx_unicode_literals) \
-  F(cxx_uniform_initialization) \
-  F(cxx_unrestricted_unions) \
-  F(cxx_user_literals) \
-  F(cxx_variable_templates) \
-  F(cxx_variadic_macros) \
+#define FOR_EACH_CXX_FEATURE(F)                                               \
+  F(cxx_std_98)                                                               \
+  F(cxx_std_11)                                                               \
+  F(cxx_std_14)                                                               \
+  F(cxx_std_17)                                                               \
+  F(cxx_std_20)                                                               \
+  F(cxx_aggregate_default_initializers)                                       \
+  F(cxx_alias_templates)                                                      \
+  F(cxx_alignas)                                                              \
+  F(cxx_alignof)                                                              \
+  F(cxx_attributes)                                                           \
+  F(cxx_attribute_deprecated)                                                 \
+  F(cxx_auto_type)                                                            \
+  F(cxx_binary_literals)                                                      \
+  F(cxx_constexpr)                                                            \
+  F(cxx_contextual_conversions)                                               \
+  F(cxx_decltype)                                                             \
+  F(cxx_decltype_auto)                                                        \
+  F(cxx_decltype_incomplete_return_types)                                     \
+  F(cxx_default_function_template_args)                                       \
+  F(cxx_defaulted_functions)                                                  \
+  F(cxx_defaulted_move_initializers)                                          \
+  F(cxx_delegating_constructors)                                              \
+  F(cxx_deleted_functions)                                                    \
+  F(cxx_digit_separators)                                                     \
+  F(cxx_enum_forward_declarations)                                            \
+  F(cxx_explicit_conversions)                                                 \
+  F(cxx_extended_friend_declarations)                                         \
+  F(cxx_extern_templates)                                                     \
+  F(cxx_final)                                                                \
+  F(cxx_func_identifier)                                                      \
+  F(cxx_generalized_initializers)                                             \
+  F(cxx_generic_lambdas)                                                      \
+  F(cxx_inheriting_constructors)                                              \
+  F(cxx_inline_namespaces)                                                    \
+  F(cxx_lambdas)                                                              \
+  F(cxx_lambda_init_captures)                                                 \
+  F(cxx_local_type_template_args)                                             \
+  F(cxx_long_long_type)                                                       \
+  F(cxx_noexcept)                                                             \
+  F(cxx_nonstatic_member_init)                                                \
+  F(cxx_nullptr)                                                              \
+  F(cxx_override)                                                             \
+  F(cxx_range_for)                                                            \
+  F(cxx_raw_string_literals)                                                  \
+  F(cxx_reference_qualified_functions)                                        \
+  F(cxx_relaxed_constexpr)                                                    \
+  F(cxx_return_type_deduction)                                                \
+  F(cxx_right_angle_brackets)                                                 \
+  F(cxx_rvalue_references)                                                    \
+  F(cxx_sizeof_member)                                                        \
+  F(cxx_static_assert)                                                        \
+  F(cxx_strong_enums)                                                         \
+  F(cxx_template_template_parameters)                                         \
+  F(cxx_thread_local)                                                         \
+  F(cxx_trailing_return_types)                                                \
+  F(cxx_unicode_literals)                                                     \
+  F(cxx_uniform_initialization)                                               \
+  F(cxx_unrestricted_unions)                                                  \
+  F(cxx_user_literals)                                                        \
+  F(cxx_variable_templates)                                                   \
+  F(cxx_variadic_macros)                                                      \
   F(cxx_variadic_templates)
 
 #endif

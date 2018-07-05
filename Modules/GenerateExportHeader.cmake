@@ -1,3 +1,6 @@
+# Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+# file Copyright.txt or https://cmake.org/licensing for details.
+
 #.rst:
 # GenerateExportHeader
 # --------------------
@@ -16,10 +19,12 @@
 #              [EXPORT_FILE_NAME <export_file_name>]
 #              [DEPRECATED_MACRO_NAME <deprecated_macro_name>]
 #              [NO_EXPORT_MACRO_NAME <no_export_macro_name>]
+#              [INCLUDE_GUARD_NAME <include_guard_name>]
 #              [STATIC_DEFINE <static_define>]
 #              [NO_DEPRECATED_MACRO_NAME <no_deprecated_macro_name>]
 #              [DEFINE_NO_DEPRECATED]
 #              [PREFIX_NAME <prefix_name>]
+#              [CUSTOM_CONTENT_FROM_VARIABLE <variable>]
 #    )
 #
 #
@@ -60,8 +65,10 @@
 # The CMake fragment will generate a file in the
 # ``${CMAKE_CURRENT_BINARY_DIR}`` called ``somelib_export.h`` containing the
 # macros ``SOMELIB_EXPORT``, ``SOMELIB_NO_EXPORT``, ``SOMELIB_DEPRECATED``,
-# ``SOMELIB_DEPRECATED_EXPORT`` and ``SOMELIB_DEPRECATED_NO_EXPORT``.  The
-# resulting file should be installed with other headers in the library.
+# ``SOMELIB_DEPRECATED_EXPORT`` and ``SOMELIB_DEPRECATED_NO_EXPORT``.
+# They will be followed by content taken from the variable specified by
+# the ``CUSTOM_CONTENT_FROM_VARIABLE`` option, if any.
+# The resulting file should be installed with other headers in the library.
 #
 # The ``BASE_NAME`` argument can be used to override the file name and the
 # names used for the macros:
@@ -78,7 +85,7 @@
 # ``OTHER_NAME_EXPORT``, ``OTHER_NAME_NO_EXPORT`` and ``OTHER_NAME_DEPRECATED``
 # etc.
 #
-# The ``BASE_NAME`` may be overridden by specifiying other options in the
+# The ``BASE_NAME`` may be overridden by specifying other options in the
 # function.  For example:
 #
 # .. code-block:: cmake
@@ -178,20 +185,7 @@
 # :prop_tgt:`CXX_VISIBILITY_PRESET <<LANG>_VISIBILITY_PRESET>` and
 # :prop_tgt:`VISIBILITY_INLINES_HIDDEN` instead.
 
-#=============================================================================
-# Copyright 2011 Stephen Kelly <steveire@gmail.com>
-#
-# Distributed under the OSI-approved BSD License (the "License");
-# see accompanying file Copyright.txt for details.
-#
-# This software is distributed WITHOUT ANY WARRANTY; without even the
-# implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-# See the License for more information.
-#=============================================================================
-# (To distribute this file outside of CMake, substitute the full
-#  License text for the above reference.)
-
-include(CMakeParseArguments)
+include(CheckCCompilerFlag)
 include(CheckCXXCompilerFlag)
 
 # TODO: Install this macro separately?
@@ -201,11 +195,18 @@ macro(_check_cxx_compiler_attribute _ATTRIBUTE _RESULT)
   )
 endmacro()
 
+# TODO: Install this macro separately?
+macro(_check_c_compiler_attribute _ATTRIBUTE _RESULT)
+  check_c_source_compiles("${_ATTRIBUTE} int somefunc() { return 0; }
+    int main() { return somefunc();}" ${_RESULT}
+  )
+endmacro()
+
 macro(_test_compiler_hidden_visibility)
 
   if(CMAKE_COMPILER_IS_GNUCXX AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.2")
     set(GCC_TOO_OLD TRUE)
-  elseif(CMAKE_COMPILER_IS_GNUC AND CMAKE_C_COMPILER_VERSION VERSION_LESS "4.2")
+  elseif(CMAKE_COMPILER_IS_GNUCC AND CMAKE_C_COMPILER_VERSION VERSION_LESS "4.2")
     set(GCC_TOO_OLD TRUE)
   elseif(CMAKE_CXX_COMPILER_ID MATCHES Intel AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS "12.0")
     set(_INTEL_TOO_OLD TRUE)
@@ -220,12 +221,15 @@ macro(_test_compiler_hidden_visibility)
       AND NOT CMAKE_CXX_COMPILER_ID MATCHES XL
       AND NOT CMAKE_CXX_COMPILER_ID MATCHES PGI
       AND NOT CMAKE_CXX_COMPILER_ID MATCHES Watcom)
-    check_cxx_compiler_flag(-fvisibility=hidden COMPILER_HAS_HIDDEN_VISIBILITY)
-    check_cxx_compiler_flag(-fvisibility-inlines-hidden
-      COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
-    option(USE_COMPILER_HIDDEN_VISIBILITY
-      "Use HIDDEN visibility support if available." ON)
-    mark_as_advanced(USE_COMPILER_HIDDEN_VISIBILITY)
+    if (CMAKE_CXX_COMPILER_LOADED)
+      check_cxx_compiler_flag(-fvisibility=hidden COMPILER_HAS_HIDDEN_VISIBILITY)
+      check_cxx_compiler_flag(-fvisibility-inlines-hidden
+        COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
+    else()
+      check_c_compiler_flag(-fvisibility=hidden COMPILER_HAS_HIDDEN_VISIBILITY)
+      check_c_compiler_flag(-fvisibility-inlines-hidden
+        COMPILER_HAS_HIDDEN_INLINE_VISIBILITY)
+    endif()
   endif()
 endmacro()
 
@@ -242,14 +246,27 @@ macro(_test_compiler_has_deprecated)
     set(COMPILER_HAS_DEPRECATED "" CACHE INTERNAL
       "Compiler support for a deprecated attribute")
   else()
-    _check_cxx_compiler_attribute("__attribute__((__deprecated__))"
-      COMPILER_HAS_DEPRECATED_ATTR)
-    if(COMPILER_HAS_DEPRECATED_ATTR)
-      set(COMPILER_HAS_DEPRECATED "${COMPILER_HAS_DEPRECATED_ATTR}"
-        CACHE INTERNAL "Compiler support for a deprecated attribute")
+    if (CMAKE_CXX_COMPILER_LOADED)
+      _check_cxx_compiler_attribute("__attribute__((__deprecated__))"
+        COMPILER_HAS_DEPRECATED_ATTR)
+      if(COMPILER_HAS_DEPRECATED_ATTR)
+        set(COMPILER_HAS_DEPRECATED "${COMPILER_HAS_DEPRECATED_ATTR}"
+          CACHE INTERNAL "Compiler support for a deprecated attribute")
+      else()
+        _check_cxx_compiler_attribute("__declspec(deprecated)"
+          COMPILER_HAS_DEPRECATED)
+      endif()
     else()
-      _check_cxx_compiler_attribute("__declspec(deprecated)"
-        COMPILER_HAS_DEPRECATED)
+      _check_c_compiler_attribute("__attribute__((__deprecated__))"
+        COMPILER_HAS_DEPRECATED_ATTR)
+      if(COMPILER_HAS_DEPRECATED_ATTR)
+        set(COMPILER_HAS_DEPRECATED "${COMPILER_HAS_DEPRECATED_ATTR}"
+          CACHE INTERNAL "Compiler support for a deprecated attribute")
+      else()
+        _check_c_compiler_attribute("__declspec(deprecated)"
+          COMPILER_HAS_DEPRECATED)
+      endif()
+
     endif()
   endif()
 endmacro()
@@ -275,7 +292,7 @@ macro(_DO_SET_MACRO_VALUES TARGET_LIBRARY)
     if(WIN32 OR CYGWIN)
       set(DEFINE_EXPORT "__declspec(dllexport)")
       set(DEFINE_IMPORT "__declspec(dllimport)")
-    elseif(COMPILER_HAS_HIDDEN_VISIBILITY AND USE_COMPILER_HIDDEN_VISIBILITY)
+    elseif(COMPILER_HAS_HIDDEN_VISIBILITY)
       set(DEFINE_EXPORT "__attribute__((visibility(\"default\")))")
       set(DEFINE_IMPORT "__attribute__((visibility(\"default\")))")
       set(DEFINE_NO_EXPORT "__attribute__((visibility(\"hidden\")))")
@@ -288,7 +305,7 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   set(options DEFINE_NO_DEPRECATED)
   set(oneValueArgs PREFIX_NAME BASE_NAME EXPORT_MACRO_NAME EXPORT_FILE_NAME
     DEPRECATED_MACRO_NAME NO_EXPORT_MACRO_NAME STATIC_DEFINE
-    NO_DEPRECATED_MACRO_NAME)
+    NO_DEPRECATED_MACRO_NAME CUSTOM_CONTENT_FROM_VARIABLE INCLUDE_GUARD_NAME)
   set(multiValueArgs)
 
   cmake_parse_arguments(_GEH "${options}" "${oneValueArgs}" "${multiValueArgs}"
@@ -341,7 +358,9 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   string(MAKE_C_IDENTIFIER ${STATIC_DEFINE} STATIC_DEFINE)
 
   if(_GEH_DEFINE_NO_DEPRECATED)
-    set(DEFINE_NO_DEPRECATED TRUE)
+    set(DEFINE_NO_DEPRECATED 1)
+  else()
+    set(DEFINE_NO_DEPRECATED 0)
   endif()
 
   if(_GEH_NO_DEPRECATED_MACRO_NAME)
@@ -350,7 +369,11 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
   endif()
   string(MAKE_C_IDENTIFIER ${NO_DEPRECATED_MACRO_NAME} NO_DEPRECATED_MACRO_NAME)
 
-  set(INCLUDE_GUARD_NAME "${EXPORT_MACRO_NAME}_H")
+  if(_GEH_INCLUDE_GUARD_NAME)
+    set(INCLUDE_GUARD_NAME ${_GEH_INCLUDE_GUARD_NAME})
+  else()
+    set(INCLUDE_GUARD_NAME "${EXPORT_MACRO_NAME}_H")
+  endif()
 
   get_target_property(EXPORT_IMPORT_CONDITION ${TARGET_LIBRARY} DEFINE_SYMBOL)
 
@@ -358,6 +381,14 @@ macro(_DO_GENERATE_EXPORT_HEADER TARGET_LIBRARY)
     set(EXPORT_IMPORT_CONDITION ${TARGET_LIBRARY}_EXPORTS)
   endif()
   string(MAKE_C_IDENTIFIER ${EXPORT_IMPORT_CONDITION} EXPORT_IMPORT_CONDITION)
+
+  if(_GEH_CUSTOM_CONTENT_FROM_VARIABLE)
+    if(DEFINED "${_GEH_CUSTOM_CONTENT_FROM_VARIABLE}")
+      set(CUSTOM_CONTENT "${${_GEH_CUSTOM_CONTENT_FROM_VARIABLE}}")
+    else()
+      set(CUSTOM_CONTENT "")
+    endif()
+  endif()
 
   configure_file("${_GENERATE_EXPORT_HEADER_MODULE_DIR}/exportheader.cmake.in"
     "${EXPORT_FILE_NAME}" @ONLY)
@@ -386,6 +417,9 @@ function(add_compiler_export_flags)
   _test_compiler_hidden_visibility()
   _test_compiler_has_deprecated()
 
+  option(USE_COMPILER_HIDDEN_VISIBILITY
+    "Use HIDDEN visibility support if available." ON)
+  mark_as_advanced(USE_COMPILER_HIDDEN_VISIBILITY)
   if(NOT (USE_COMPILER_HIDDEN_VISIBILITY AND COMPILER_HAS_HIDDEN_VISIBILITY))
     # Just return if there are no flags to add.
     return()
@@ -402,6 +436,7 @@ function(add_compiler_export_flags)
   if(ARGC GREATER 0)
     set(${ARGV0} "${EXTRA_FLAGS}" PARENT_SCOPE)
   else()
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_FLAGS}" PARENT_SCOPE)
+    string(APPEND CMAKE_CXX_FLAGS " ${EXTRA_FLAGS}")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}" PARENT_SCOPE)
   endif()
 endfunction()

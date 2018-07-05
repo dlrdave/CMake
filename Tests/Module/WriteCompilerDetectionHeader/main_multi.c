@@ -1,7 +1,8 @@
 
 #include "multi_file_compiler_detection.h"
 
-#if !defined(MULTI_COMPILER_C_FUNCTION_PROTOTYPES) || !MULTI_COMPILER_C_FUNCTION_PROTOTYPES
+#if !defined(MULTI_COMPILER_C_FUNCTION_PROTOTYPES) ||                         \
+  !MULTI_COMPILER_C_FUNCTION_PROTOTYPES
 #  error Expected MULTI_COMPILER_C_FUNCTION_PROTOTYPES
 #endif
 
@@ -20,7 +21,7 @@
 #endif
 
 #ifdef MULTI_COMPILER_CXX_STATIC_ASSERT
-#error Expect no CXX features defined
+#  error Expect no CXX features defined
 #endif
 
 int main()

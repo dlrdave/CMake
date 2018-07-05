@@ -1,6 +1,6 @@
 
 #ifdef FOO_LIBRARY
-#error Unexpected FOO_LIBRARY
+#  error Unexpected FOO_LIBRARY
 #endif
 
 #ifdef BAR_USE_BANG

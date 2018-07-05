@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
+cmake_policy(SET CMP0054 NEW)
 project(PDBDirectoryAndName C)
 
 # Make sure the proper compiler is in use.
@@ -18,7 +19,7 @@ set(my_targets "")
 add_library(mylibA SHARED mylibA.c)
 set_target_properties(mylibA PROPERTIES
     PDB_NAME "mylibA_Special"
-    PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mylibA_PDB"
+    PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/mylibA_PDB/$<CONFIG>"
 )
 list(APPEND my_targets mylibA)
 
@@ -62,13 +63,16 @@ list(APPEND my_targets myexe2)
 
 target_link_libraries(myexe2 mylibA mylibD)
 
+
+# Clang/C2 does not produce pdb files for static libraries
+if (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND
+    CMAKE_C_SIMULATE_ID STREQUAL "MSVC")
+  list(REMOVE_ITEM my_targets mylibB mylibD)
+endif()
+
+
 #-----------------------------------------------------------------------------
 # Check that PDB files actually appear where expected.
-
-# The PDB_NAME and PDB_OUTPUT_DIRECTORY options do not work in VS 6.
-if("${CMAKE_GENERATOR}" MATCHES "Visual Studio 6")
-  return()
-endif()
 
 set(pdbs "")
 foreach(t ${my_targets})
@@ -83,7 +87,13 @@ foreach(t ${my_targets})
   if(NOT pdb_dir)
     set(pdb_dir ${CMAKE_CURRENT_BINARY_DIR})
   endif()
-  list(APPEND pdbs ${pdb_dir}/${CMAKE_CFG_INTDIR}/${pdb_name}.pdb)
+  if (pdb_dir MATCHES "\\$<.*>")
+    # Skip per-configuration subdirectory if the value contained
+    # a generator expression.
+    list(APPEND pdbs ${pdb_dir}/${pdb_name}.pdb)
+  else()
+    list(APPEND pdbs ${pdb_dir}/${CMAKE_CFG_INTDIR}/${pdb_name}.pdb)
+  endif()
 endforeach()
 add_custom_target(check_pdbs ALL VERBATIM
   COMMAND ${CMAKE_COMMAND} -Dconfig=$<CONFIGURATION> "-Dpdbs=${pdbs}"

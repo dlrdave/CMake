@@ -1,39 +1,45 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCPackIFWGenerator_h
 #define cmCPackIFWGenerator_h
 
-#include <cmGeneratedFileStream.h>
-#include <CPack/cmCPackGenerator.h>
+#include "cmConfigure.h" // IWYU pragma: keep
 
-#include "cmCPackIFWPackage.h"
+#include "cmCPackComponentGroup.h"
+#include "cmCPackGenerator.h"
+#include "cmCPackIFWCommon.h"
 #include "cmCPackIFWInstaller.h"
+#include "cmCPackIFWPackage.h"
+#include "cmCPackIFWRepository.h"
+
+#include <map>
+#include <set>
+#include <string>
+#include <vector>
 
 /** \class cmCPackIFWGenerator
  * \brief A generator for Qt Installer Framework tools
  *
  * http://qt-project.org/doc/qtinstallerframework/index.html
  */
-class cmCPackIFWGenerator : public cmCPackGenerator
+class cmCPackIFWGenerator
+  : public cmCPackGenerator
+  , public cmCPackIFWCommon
 {
 public:
   cmCPackTypeMacro(cmCPackIFWGenerator, cmCPackGenerator);
 
   typedef std::map<std::string, cmCPackIFWPackage> PackagesMap;
+  typedef std::map<std::string, cmCPackIFWRepository> RepositoriesMap;
   typedef std::map<std::string, cmCPackComponent> ComponentsMap;
   typedef std::map<std::string, cmCPackComponentGroup> ComponentGoupsMap;
   typedef std::map<std::string, cmCPackIFWPackage::DependenceStruct>
     DependenceMap;
+
+  using cmCPackIFWCommon::GetOption;
+  using cmCPackIFWCommon::IsOn;
+  using cmCPackIFWCommon::IsSetToOff;
+  using cmCPackIFWCommon::IsSetToEmpty;
 
   /**
    * Construct IFW generator
@@ -43,41 +49,27 @@ public:
   /**
    * Destruct IFW generator
    */
-  virtual ~cmCPackIFWGenerator();
+  ~cmCPackIFWGenerator() override;
 
-  /**
-   * Compare \a version with QtIFW framework version
-   */
-  bool IsVersionLess(const char *version);
-
-  /**
-   * Compare \a version with QtIFW framework version
-   */
-  bool IsVersionGreater(const char *version);
-
-  /**
-   * Compare \a version with QtIFW framework version
-   */
-  bool IsVersionEqual(const char *version);
-
-protected: // cmCPackGenerator reimplementation
+protected:
+  // cmCPackGenerator reimplementation
 
   /**
    * @brief Initialize generator
    * @return 0 on failure
    */
-  virtual int InitializeInternal();
-  virtual int PackageFiles();
-  virtual const char* GetPackagingInstallPrefix();
+  int InitializeInternal() override;
+  int PackageFiles() override;
+  const char* GetPackagingInstallPrefix() override;
 
   /**
-   * @brief Extension of binary installer
-   * @return Executable suffix or value from default implementation
+   * @brief Target binary extension
+   * @return Executable suffix or disk image format
    */
-  virtual const char* GetOutputExtension();
+  const char* GetOutputExtension() override;
 
-  virtual std::string GetComponentInstallDirNameSuffix(
-    const std::string& componentName);
+  std::string GetComponentInstallDirNameSuffix(
+    const std::string& componentName) override;
 
   /**
    * @brief Get Component
@@ -88,9 +80,8 @@ protected: // cmCPackGenerator reimplementation
    *
    * @return Pointer to component
    */
-  virtual cmCPackComponent* GetComponent(
-    const std::string& projectName,
-    const std::string& componentName);
+  cmCPackComponent* GetComponent(const std::string& projectName,
+                                 const std::string& componentName) override;
 
   /**
    * @brief Get group of component
@@ -101,37 +92,45 @@ protected: // cmCPackGenerator reimplementation
    *
    * @return Pointer to component group
    */
-  virtual cmCPackComponentGroup* GetComponentGroup(
-    const std::string& projectName,
-    const std::string& groupName);
+  cmCPackComponentGroup* GetComponentGroup(
+    const std::string& projectName, const std::string& groupName) override;
 
-  enum cmCPackGenerator::CPackSetDestdirSupport SupportsSetDestdir() const;
-  virtual bool SupportsAbsoluteDestination() const;
-  virtual bool SupportsComponentInstallation() const;
+  enum cmCPackGenerator::CPackSetDestdirSupport SupportsSetDestdir()
+    const override;
+  bool SupportsAbsoluteDestination() const override;
+  bool SupportsComponentInstallation() const override;
 
-protected: // Methods
+protected:
+  // Methods
 
   bool IsOnePackage() const;
 
   std::string GetRootPackageName();
 
-  std::string GetGroupPackageName(cmCPackComponentGroup *group) const;
-  std::string GetComponentPackageName(cmCPackComponent *component) const;
+  std::string GetGroupPackageName(cmCPackComponentGroup* group) const;
+  std::string GetComponentPackageName(cmCPackComponent* component) const;
 
-  cmCPackIFWPackage* GetGroupPackage(cmCPackComponentGroup *group) const;
-  cmCPackIFWPackage* GetComponentPackage(cmCPackComponent *component) const;
+  cmCPackIFWPackage* GetGroupPackage(cmCPackComponentGroup* group) const;
+  cmCPackIFWPackage* GetComponentPackage(cmCPackComponent* component) const;
 
-  void WriteGeneratedByToStrim(cmGeneratedFileStream& xout);
+  cmCPackIFWRepository* GetRepository(const std::string& repositoryName);
 
-protected: // Data
+protected:
+  // Data
 
   friend class cmCPackIFWPackage;
+  friend class cmCPackIFWCommon;
   friend class cmCPackIFWInstaller;
+  friend class cmCPackIFWRepository;
 
   // Installer
   cmCPackIFWInstaller Installer;
+  // Repository
+  cmCPackIFWRepository Repository;
   // Collection of packages
   PackagesMap Packages;
+  // Collection of repositories
+  RepositoriesMap Repositories;
   // Collection of binary packages
   std::set<cmCPackIFWPackage*> BinaryPackages;
   // Collection of downloaded packages
@@ -146,10 +145,12 @@ private:
   std::string BinCreator;
   std::string FrameworkVersion;
   std::string ExecutableSuffix;
+  std::string OutputExtension;
 
   bool OnlineOnly;
   bool ResolveDuplicateNames;
   std::vector<std::string> PkgsDirsVector;
+  std::vector<std::string> RepoDirsVector;
 };
 
 #endif

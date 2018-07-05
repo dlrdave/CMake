@@ -1,188 +1,233 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2013 Stephen Kelly <steveire@gmail.com>
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
-
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #include "cmGeneratorExpressionEvaluationFile.h"
 
-#include "cmMakefile.h"
-#include "cmLocalGenerator.h"
-#include "cmGlobalGenerator.h"
-#include "cmSourceFile.h"
+#include "cmsys/FStream.hxx"
+#include <memory> // IWYU pragma: keep
+#include <sstream>
+#include <utility>
+
 #include "cmGeneratedFileStream.h"
-#include <cmsys/FStream.hxx>
+#include "cmGlobalGenerator.h"
+#include "cmListFileCache.h"
+#include "cmLocalGenerator.h"
+#include "cmMakefile.h"
+#include "cmSourceFile.h"
+#include "cmSourceFileLocationKind.h"
+#include "cmSystemTools.h"
+#include "cmake.h"
 
-#include <assert.h>
-
-//----------------------------------------------------------------------------
 cmGeneratorExpressionEvaluationFile::cmGeneratorExpressionEvaluationFile(
-        const std::string &input,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> outputFileExpr,
-        cmsys::auto_ptr<cmCompiledGeneratorExpression> condition,
-        bool inputIsContent)
-  : Input(input),
-    OutputFileExpr(outputFileExpr),
-    Condition(condition),
-    InputIsContent(inputIsContent)
+  const std::string& input,
+  std::unique_ptr<cmCompiledGeneratorExpression> outputFileExpr,
+  std::unique_ptr<cmCompiledGeneratorExpression> condition,
+  bool inputIsContent, cmPolicies::PolicyStatus policyStatusCMP0070)
+  : Input(input)
+  , OutputFileExpr(std::move(outputFileExpr))
+  , Condition(std::move(condition))
+  , InputIsContent(inputIsContent)
+  , PolicyStatusCMP0070(policyStatusCMP0070)
 {
 }
 
-//----------------------------------------------------------------------------
-void cmGeneratorExpressionEvaluationFile::Generate(cmLocalGenerator* lg,
-              const std::string& config,
-              const std::string& lang,
-              cmCompiledGeneratorExpression* inputExpression,
-              std::map<std::string, std::string> &outputFiles, mode_t perm)
+void cmGeneratorExpressionEvaluationFile::Generate(
+  cmLocalGenerator* lg, const std::string& config, const std::string& lang,
+  cmCompiledGeneratorExpression* inputExpression,
+  std::map<std::string, std::string>& outputFiles, mode_t perm)
 {
   std::string rawCondition = this->Condition->GetInput();
-  if (!rawCondition.empty())
-    {
-    std::string condResult = this->Condition->Evaluate(lg,
-                                                       config,
-                                                       false, 0, 0, 0, lang);
-    if (condResult == "0")
-      {
+  if (!rawCondition.empty()) {
+    std::string condResult = this->Condition->Evaluate(
+      lg, config, false, nullptr, nullptr, nullptr, lang);
+    if (condResult == "0") {
       return;
-      }
-    if (condResult != "1")
-      {
+    }
+    if (condResult != "1") {
       std::ostringstream e;
-      e << "Evaluation file condition \"" << rawCondition << "\" did "
-          "not evaluate to valid content. Got \"" << condResult << "\".";
+      e << "Evaluation file condition \"" << rawCondition
+        << "\" did "
+           "not evaluate to valid content. Got \""
+        << condResult << "\".";
       lg->IssueMessage(cmake::FATAL_ERROR, e.str());
       return;
-      }
     }
+  }
 
-  const std::string outputFileName
-                    = this->OutputFileExpr->Evaluate(lg, config,
-                                                     false, 0, 0, 0, lang);
-  const std::string outputContent
-                          = inputExpression->Evaluate(lg,
-                                                      config,
-                                                      false, 0, 0, 0, lang);
+  std::string outputFileName = this->OutputFileExpr->Evaluate(
+    lg, config, false, nullptr, nullptr, nullptr, lang);
+  const std::string outputContent = inputExpression->Evaluate(
+    lg, config, false, nullptr, nullptr, nullptr, lang);
 
-  std::map<std::string, std::string>::iterator it
-                                          = outputFiles.find(outputFileName);
+  if (cmSystemTools::FileIsFullPath(outputFileName)) {
+    outputFileName = cmSystemTools::CollapseFullPath(outputFileName);
+  } else {
+    outputFileName = this->FixRelativePath(outputFileName, PathForOutput, lg);
+  }
 
-  if(it != outputFiles.end())
-    {
-    if (it->second == outputContent)
-      {
+  std::map<std::string, std::string>::iterator it =
+    outputFiles.find(outputFileName);
+
+  if (it != outputFiles.end()) {
+    if (it->second == outputContent) {
       return;
-      }
+    }
     std::ostringstream e;
-    e << "Evaluation file to be written multiple times for different "
-         "configurations or languages with different content:\n  "
+    e << "Evaluation file to be written multiple times with different "
+         "content. "
+         "This is generally caused by the content evaluating the "
+         "configuration type, language, or location of object files:\n "
       << outputFileName;
     lg->IssueMessage(cmake::FATAL_ERROR, e.str());
     return;
-    }
+  }
 
-  lg->GetMakefile()->AddCMakeOutputFile(outputFileName.c_str());
+  lg->GetMakefile()->AddCMakeOutputFile(outputFileName);
   this->Files.push_back(outputFileName);
   outputFiles[outputFileName] = outputContent;
 
   cmGeneratedFileStream fout(outputFileName.c_str());
   fout.SetCopyIfDifferent(true);
   fout << outputContent;
-  if (fout.Close() && perm)
-    {
+  if (fout.Close() && perm) {
     cmSystemTools::SetPermissions(outputFileName.c_str(), perm);
-    }
+  }
 }
 
-//----------------------------------------------------------------------------
 void cmGeneratorExpressionEvaluationFile::CreateOutputFile(
-    cmLocalGenerator *lg, std::string const& config)
+  cmLocalGenerator* lg, std::string const& config)
 {
   std::vector<std::string> enabledLanguages;
-  cmGlobalGenerator *gg = lg->GetGlobalGenerator();
+  cmGlobalGenerator* gg = lg->GetGlobalGenerator();
   gg->GetEnabledLanguages(enabledLanguages);
 
-  for(std::vector<std::string>::const_iterator le = enabledLanguages.begin();
-      le != enabledLanguages.end(); ++le)
-    {
-    std::string name = this->OutputFileExpr->Evaluate(lg,
-                                                      config,
-                                                      false, 0, 0, 0, *le);
-    cmSourceFile* sf = lg->GetMakefile()->GetOrCreateSource(name);
+  for (std::string const& le : enabledLanguages) {
+    std::string name = this->OutputFileExpr->Evaluate(
+      lg, config, false, nullptr, nullptr, nullptr, le);
+    cmSourceFile* sf = lg->GetMakefile()->GetOrCreateSource(
+      name, false, cmSourceFileLocationKind::Known);
+    // Tell TraceDependencies that the file is not expected to exist
+    // on disk yet.  We generate it after that runs.
     sf->SetProperty("GENERATED", "1");
 
-    gg->SetFilenameTargetDepends(sf,
-                          this->OutputFileExpr->GetSourceSensitiveTargets());
-    }
+    // Tell the build system generators that there is no build rule
+    // to generate the file.
+    sf->SetProperty("__CMAKE_GENERATED_BY_CMAKE", "1");
+
+    gg->SetFilenameTargetDepends(
+      sf, this->OutputFileExpr->GetSourceSensitiveTargets());
+  }
 }
 
-//----------------------------------------------------------------------------
-void cmGeneratorExpressionEvaluationFile::Generate(cmLocalGenerator *lg)
+void cmGeneratorExpressionEvaluationFile::Generate(cmLocalGenerator* lg)
 {
   mode_t perm = 0;
   std::string inputContent;
-  if (this->InputIsContent)
-    {
+  if (this->InputIsContent) {
     inputContent = this->Input;
+  } else {
+    std::string inputFileName = this->Input;
+    if (cmSystemTools::FileIsFullPath(inputFileName)) {
+      inputFileName = cmSystemTools::CollapseFullPath(inputFileName);
+    } else {
+      inputFileName = this->FixRelativePath(inputFileName, PathForInput, lg);
     }
-  else
-    {
-    lg->GetMakefile()->AddCMakeDependFile(this->Input.c_str());
-    cmSystemTools::GetPermissions(this->Input.c_str(), perm);
-    cmsys::ifstream fin(this->Input.c_str());
-    if(!fin)
-      {
+    lg->GetMakefile()->AddCMakeDependFile(inputFileName);
+    cmSystemTools::GetPermissions(inputFileName.c_str(), perm);
+    cmsys::ifstream fin(inputFileName.c_str());
+    if (!fin) {
       std::ostringstream e;
-      e << "Evaluation file \"" << this->Input << "\" cannot be read.";
+      e << "Evaluation file \"" << inputFileName << "\" cannot be read.";
       lg->IssueMessage(cmake::FATAL_ERROR, e.str());
       return;
-      }
+    }
 
     std::string line;
     std::string sep;
-    while(cmSystemTools::GetLineFromStream(fin, line))
-      {
+    while (cmSystemTools::GetLineFromStream(fin, line)) {
       inputContent += sep + line;
       sep = "\n";
-      }
-    inputContent += sep;
     }
+    inputContent += sep;
+  }
 
   cmListFileBacktrace lfbt = this->OutputFileExpr->GetBacktrace();
   cmGeneratorExpression contentGE(lfbt);
-  cmsys::auto_ptr<cmCompiledGeneratorExpression> inputExpression
-                                              = contentGE.Parse(inputContent);
+  std::unique_ptr<cmCompiledGeneratorExpression> inputExpression =
+    contentGE.Parse(inputContent);
 
   std::map<std::string, std::string> outputFiles;
 
   std::vector<std::string> allConfigs;
   lg->GetMakefile()->GetConfigurations(allConfigs);
 
-  if (allConfigs.empty())
-    {
-    allConfigs.push_back("");
-    }
+  if (allConfigs.empty()) {
+    allConfigs.emplace_back();
+  }
 
   std::vector<std::string> enabledLanguages;
-  cmGlobalGenerator *gg = lg->GetGlobalGenerator();
+  cmGlobalGenerator* gg = lg->GetGlobalGenerator();
   gg->GetEnabledLanguages(enabledLanguages);
 
-  for(std::vector<std::string>::const_iterator le = enabledLanguages.begin();
-      le != enabledLanguages.end(); ++le)
-    {
-    for(std::vector<std::string>::const_iterator li = allConfigs.begin();
-        li != allConfigs.end(); ++li)
-      {
-      this->Generate(lg, *li, *le, inputExpression.get(), outputFiles, perm);
-      if(cmSystemTools::GetFatalErrorOccured())
-        {
+  for (std::string const& le : enabledLanguages) {
+    for (std::string const& li : allConfigs) {
+      this->Generate(lg, li, le, inputExpression.get(), outputFiles, perm);
+      if (cmSystemTools::GetFatalErrorOccured()) {
         return;
-        }
       }
     }
+  }
+}
+
+std::string cmGeneratorExpressionEvaluationFile::FixRelativePath(
+  std::string const& relativePath, PathRole role, cmLocalGenerator* lg)
+{
+  std::string resultPath;
+  switch (this->PolicyStatusCMP0070) {
+    case cmPolicies::WARN: {
+      std::string arg;
+      switch (role) {
+        case PathForInput:
+          arg = "INPUT";
+          break;
+        case PathForOutput:
+          arg = "OUTPUT";
+          break;
+      }
+      std::ostringstream w;
+      /* clang-format off */
+      w <<
+        cmPolicies::GetPolicyWarning(cmPolicies::CMP0070) << "\n"
+        "file(GENERATE) given relative " << arg << " path:\n"
+        "  " << relativePath << "\n"
+        "This is not defined behavior unless CMP0070 is set to NEW.  "
+        "For compatibility with older versions of CMake, the previous "
+        "undefined behavior will be used."
+        ;
+      /* clang-format on */
+      lg->IssueMessage(cmake::AUTHOR_WARNING, w.str());
+    }
+      CM_FALLTHROUGH;
+    case cmPolicies::OLD:
+      // OLD behavior is to use the relative path unchanged,
+      // which ends up being used relative to the working dir.
+      resultPath = relativePath;
+      break;
+    case cmPolicies::REQUIRED_IF_USED:
+    case cmPolicies::REQUIRED_ALWAYS:
+    case cmPolicies::NEW:
+      // NEW behavior is to interpret the relative path with respect
+      // to the current source or binary directory.
+      switch (role) {
+        case PathForInput:
+          resultPath = cmSystemTools::CollapseFullPath(
+            relativePath, lg->GetCurrentSourceDirectory());
+          break;
+        case PathForOutput:
+          resultPath = cmSystemTools::CollapseFullPath(
+            relativePath, lg->GetCurrentBinaryDirectory());
+          break;
+      }
+      break;
+  }
+  return resultPath;
 }

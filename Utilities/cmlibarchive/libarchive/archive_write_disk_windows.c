@@ -192,7 +192,7 @@ struct archive_write_disk {
 
 /*
  * Default mode for dirs created automatically (will be modified by umask).
- * Note that POSIX specifies 0777 for implicity-created dirs, "modified
+ * Note that POSIX specifies 0777 for implicitly-created dirs, "modified
  * by the process' file creation mask."
  */
 #define	DEFAULT_DIR_MODE 0777
@@ -396,7 +396,7 @@ permissive_name_w(struct archive_write_disk *a)
 	}
 
 	/*
-	 * A full-pathname pointig a network drive
+	 * A full-pathname pointing to a network drive
 	 * like "\\<server-name>\<share-name>\file". 
 	 */
 	if (wnp[0] == L'\\' && wnp[1] == L'\\' && wnp[2] != L'\\') {
@@ -468,9 +468,17 @@ permissive_name_w(struct archive_write_disk *a)
 		return (-1);
 	archive_wstring_ensure(&(a->_name_data), 4 + l + 1 + wcslen(wn) + 1);
 	a->name = a->_name_data.s;
-	/* Prepend "\\?\" and drive name. */
-	archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
-	archive_wstrncat(&(a->_name_data), wsp, l);
+	/* Prepend "\\?\" and drive name if not already added. */
+	if (l > 3 && wsp[0] == L'\\' && wsp[1] == L'\\' &&
+		wsp[2] == L'?' && wsp[3] == L'\\')
+	{
+		archive_wstrncpy(&(a->_name_data), wsp, l);
+	}
+	else
+	{
+		archive_wstrncpy(&(a->_name_data), L"\\\\?\\", 4);
+		archive_wstrncat(&(a->_name_data), wsp, l);
+	}
 	archive_wstrncat(&(a->_name_data), L"\\", 1);
 	archive_wstrcat(&(a->_name_data), wn);
 	a->name = a->_name_data.s;
@@ -1213,10 +1221,9 @@ archive_write_disk_new(void)
 {
 	struct archive_write_disk *a;
 
-	a = (struct archive_write_disk *)malloc(sizeof(*a));
+	a = (struct archive_write_disk *)calloc(1, sizeof(*a));
 	if (a == NULL)
 		return (NULL);
-	memset(a, 0, sizeof(*a));
 	a->archive.magic = ARCHIVE_WRITE_DISK_MAGIC;
 	/* We're ready to write a header immediately. */
 	a->archive.state = ARCHIVE_STATE_HEADER;

@@ -12,6 +12,7 @@ Add a target with no output so it will always be built.
                     [WORKING_DIRECTORY dir]
                     [COMMENT comment]
                     [VERBATIM] [USES_TERMINAL]
+                    [COMMAND_EXPAND_LISTS]
                     [SOURCES src1 [src2...]])
 
 Adds a target with the given name that executes the given commands.
@@ -58,9 +59,12 @@ The options are:
   :command:`file(GENERATE)` command to create it, and then specify
   a ``COMMAND`` to launch it.)
 
-  If ``COMMAND`` specifies an executable target (created by the
+  If ``COMMAND`` specifies an executable target name (created by the
   :command:`add_executable` command) it will automatically be replaced
-  by the location of the executable created at build time.
+  by the location of the executable created at build time. If set, the
+  :prop_tgt:`CROSSCOMPILING_EMULATOR` executable target property will
+  also be prepended to the command to allow the executable to run on
+  the host.
   Additionally a target-level dependency will be added so that the
   executable target will be built before this custom target.
 
@@ -84,6 +88,14 @@ The options are:
 
   Use the :command:`add_dependencies` command to add dependencies
   on other targets.
+
+``COMMAND_EXPAND_LISTS``
+  Lists in ``COMMAND`` arguments will be expanded, including those
+  created with
+  :manual:`generator expressions <cmake-generator-expressions(7)>`,
+  allowing ``COMMAND`` arguments such as
+  ``${CC} "-I$<JOIN:$<TARGET_PROPERTY:foo,INCLUDE_DIRECTORIES>,;-I>" foo.cc``
+  to be properly expanded.
 
 ``SOURCES``
   Specify additional source files to be included in the custom target.

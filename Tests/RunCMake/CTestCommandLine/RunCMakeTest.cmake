@@ -102,7 +102,7 @@ function(run_TestLoad name load)
   add_test(TestLoad1 \"${CMAKE_COMMAND}\" -E echo \"test of --test-load\")
   add_test(TestLoad2 \"${CMAKE_COMMAND}\" -E echo \"test of --test-load\")
 ")
-  run_cmake_command(${name} ${CMAKE_CTEST_COMMAND} -j2 --test-load ${load} --test-timeout 5)
+  run_cmake_command(${name} ${CMAKE_CTEST_COMMAND} -j2 --test-load ${load})
 endfunction()
 
 # Tests for the --test-load feature of ctest
@@ -135,8 +135,29 @@ function(run_TestOutputSize)
 ")
   run_cmake_command(TestOutputSize
     ${CMAKE_CTEST_COMMAND} -M Experimental -T Test
+                           --no-compress-output
                            --test-output-size-passed 10
                            --test-output-size-failed 12
     )
 endfunction()
 run_TestOutputSize()
+
+function(run_TestAffinity)
+  set(RunCMake_TEST_BINARY_DIR ${RunCMake_BINARY_DIR}/TestAffinity)
+  set(RunCMake_TEST_NO_CLEAN 1)
+  file(REMOVE_RECURSE "${RunCMake_TEST_BINARY_DIR}")
+  file(MAKE_DIRECTORY "${RunCMake_TEST_BINARY_DIR}")
+  # Create a test with affinity enabled.  The default PROCESSORS
+  # value is 1, so our expected output checks that this is the
+  # number of processors in the mask.
+  file(WRITE "${RunCMake_TEST_BINARY_DIR}/CTestTestfile.cmake" "
+  add_test(Affinity \"${TEST_AFFINITY}\")
+  set_tests_properties(Affinity PROPERTIES PROCESSOR_AFFINITY ON)
+")
+  # Run ctest with a large parallel level so that the value is
+  # not responsible for capping the number of processors available.
+  run_cmake_command(TestAffinity ${CMAKE_CTEST_COMMAND} -V -j 64)
+endfunction()
+if(TEST_AFFINITY)
+  run_TestAffinity()
+endif()

@@ -1,21 +1,16 @@
-/*============================================================================
-  CMake - Cross Platform Makefile Generator
-  Copyright 2000-2009 Kitware, Inc., Insight Software Consortium
-
-  Distributed under the OSI-approved BSD License (the "License");
-  see accompanying file Copyright.txt for details.
-
-  This software is distributed WITHOUT ANY WARRANTY; without even the
-  implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-  See the License for more information.
-============================================================================*/
+/* Distributed under the OSI-approved BSD 3-Clause License.  See accompanying
+   file Copyright.txt or https://cmake.org/licensing for details.  */
 #ifndef cmCTestLaunch_h
 #define cmCTestLaunch_h
 
-#include "cmStandardIncludes.h"
-#include <cmsys/RegularExpression.hxx>
+#include "cmConfigure.h" // IWYU pragma: keep
 
-class cmXMLWriter;
+#include "cmsys/RegularExpression.hxx"
+#include <set>
+#include <string>
+#include <vector>
+
+class cmXMLElement;
 
 /** \class cmCTestLaunch
  * \brief Launcher for make rules to report results for ctest
@@ -27,6 +22,7 @@ class cmCTestLaunch
 public:
   /** Entry point from ctest executable main().  */
   static int Main(int argc, const char* const argv[]);
+
 private:
   // Initialize the launcher from its command line.
   cmCTestLaunch(int argc, const char* const* argv);
@@ -77,8 +73,7 @@ private:
   // Labels associated with the build rule.
   std::set<std::string> Labels;
   void LoadLabels();
-  bool SourceMatches(std::string const& lhs,
-                     std::string const& rhs);
+  bool SourceMatches(std::string const& lhs, std::string const& rhs);
 
   // Regular expressions to match warnings and their exceptions.
   bool ScrapeRulesLoaded;
@@ -94,11 +89,11 @@ private:
 
   // Methods to generate the xml fragment.
   void WriteXML();
-  void WriteXMLAction(cmXMLWriter& xml);
-  void WriteXMLCommand(cmXMLWriter& xml);
-  void WriteXMLResult(cmXMLWriter& xml);
-  void WriteXMLLabels(cmXMLWriter& xml);
-  void DumpFileToXML(cmXMLWriter& xml, std::string const& fname);
+  void WriteXMLAction(cmXMLElement&);
+  void WriteXMLCommand(cmXMLElement&);
+  void WriteXMLResult(cmXMLElement&);
+  void WriteXMLLabels(cmXMLElement&);
+  void DumpFileToXML(cmXMLElement&, const char* tag, std::string const& fname);
 
   // Configuration
   void LoadConfig();

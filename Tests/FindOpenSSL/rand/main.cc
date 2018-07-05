@@ -9,11 +9,10 @@ int main()
   unsigned char buf[1024];
 
   // random bytes
-  int rezval = RAND_bytes(buf, sizeof(buf)); /* 1 succes, 0 otherwise */
+  int rezval = RAND_bytes(buf, sizeof(buf)); /* 1 success, 0 otherwise */
 
   // check result
-  if(rezval == 1)
-  {
+  if (rezval == 1) {
     retval = 0;
   }
 
